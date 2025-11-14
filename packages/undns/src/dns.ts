@@ -3,7 +3,7 @@ import type {
   DNSRecordInput,
   DNSManagerOptions,
   RecordOptions,
-} from "./types.js";
+} from "./types";
 
 export function createDNSManager(options: DNSManagerOptions) {
   const driver = options.driver;

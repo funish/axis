@@ -42,5 +42,12 @@
     "url": "https://github.com/DemoMacro/undns/issues"
   },
   "homepage": "https://github.com/DemoMacro/undns#readme",
-  "devDependencies": {}
+  "peerDependencies": {
+    "cloudflare": "^5.2.0"
+  },
+  "peerDependenciesMeta": {
+    "cloudflare": {
+      "optional": true
+    }
+  }
 }

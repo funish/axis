@@ -14,7 +14,7 @@ import type {
   DriverOptions,
   RecordOptions,
   RawDNSResult,
-} from "../types.ts";
+} from "../types";
 
 export interface NodeDriverOptions extends DriverOptions, ResolverOptions {
   servers?: string[];
