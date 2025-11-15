@@ -1,5 +1,5 @@
-import { createDNSManager } from "../../packages/undns/src/dns";
-import cloudflareDriver from "../../packages/undns/src/drivers/cloudflare";
+import { createDNSManager } from "undns";
+import cloudflareDriver from "undns/drivers/cloudflare";
 import { groupRecordsByType, formatRecord } from "../utils";
 
 // Create DNS manager with Cloudflare driver

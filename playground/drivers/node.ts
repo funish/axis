@@ -1,21 +1,6 @@
-import { createDNSManager } from "../../packages/undns/src/dns";
-import nodeDriver from "../../packages/undns/src/drivers/node";
-import type { DNSRecord } from "../../packages/undns/src/types";
-import {
-  isARecord,
-  isAaaaRecord,
-  isMxRecord,
-  isTxtRecord,
-  isNsRecord,
-  isCnameRecord,
-  isSoaRecord,
-  isSrvRecord,
-  isCaaRecord,
-  isPtrRecord,
-  isNaptrRecord,
-  groupRecordsByType,
-  formatRecord,
-} from "../utils";
+import { createDNSManager } from "undns";
+import nodeDriver from "undns/drivers/node";
+import { groupRecordsByType, formatRecord } from "../utils";
 
 // Create DNS manager with Node.js driver
 const dns = createDNSManager({

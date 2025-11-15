@@ -1,6 +1,6 @@
 {
   "name": "undns",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Unified DNS management library for multi-provider DNS operations",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -11,6 +11,11 @@
     ".": {
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
+    },
+    "./drivers/*": {
+      "import": "./dist/drivers/*.mjs",
+      "require": "./dist/drivers/*.cjs",
+      "types": "./dist/drivers/*.d.ts"
     }
   },
   "scripts": {

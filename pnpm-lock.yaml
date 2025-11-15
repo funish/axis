@@ -30,12 +30,16 @@ importers:
         version: 3.6.1(typescript@5.8.3)
 
   packages/undns:
-    optionalDependencies:
+    dependencies:
       cloudflare:
         specifier: ^5.2.0
         version: 5.2.0
 
-  playground: {}
+  playground:
+    dependencies:
+      undns:
+        specifier: workspace:*
+        version: link:../packages/undns
 
 packages:
   "@babel/code-frame@7.27.1":
@@ -2655,12 +2659,10 @@ snapshots:
     dependencies:
       "@types/node": 24.10.1
       form-data: 4.0.4
-    optional: true
 
   "@types/node@18.19.130":
     dependencies:
       undici-types: 5.26.5
-    optional: true
 
   "@types/node@24.10.1":
     dependencies:
@@ -2671,17 +2673,14 @@ snapshots:
   abort-controller@3.0.0:
     dependencies:
       event-target-shim: 5.0.1
-    optional: true
 
   acorn@8.15.0: {}
 
   agentkeepalive@4.6.0:
     dependencies:
       humanize-ms: 1.2.1
-    optional: true
 
-  asynckit@0.4.0:
-    optional: true
+  asynckit@0.4.0: {}
 
   autoprefixer@10.4.22(postcss@8.5.6):
     dependencies:
@@ -2730,7 +2729,6 @@ snapshots:
     dependencies:
       es-errors: 1.3.0
       function-bind: 1.1.2
-    optional: true
 
   caniuse-api@3.0.0:
     dependencies:
@@ -2760,14 +2758,12 @@ snapshots:
       node-fetch: 2.7.0
     transitivePeerDependencies:
       - encoding
-    optional: true
 
   colord@2.9.3: {}
 
   combined-stream@1.0.8:
     dependencies:
       delayed-stream: 1.0.0
-    optional: true
 
   commander@11.1.0: {}
 
@@ -2857,8 +2853,7 @@ snapshots:
 
   defu@6.1.4: {}
 
-  delayed-stream@1.0.0:
-    optional: true
+  delayed-stream@1.0.0: {}
 
   destr@2.0.5: {}
 
@@ -2887,22 +2882,18 @@ snapshots:
       call-bind-apply-helpers: 1.0.2
       es-errors: 1.3.0
       gopd: 1.2.0
-    optional: true
 
   electron-to-chromium@1.5.252: {}
 
   entities@4.5.0: {}
 
-  es-define-property@1.0.1:
-    optional: true
+  es-define-property@1.0.1: {}
 
-  es-errors@1.3.0:
-    optional: true
+  es-errors@1.3.0: {}
 
   es-object-atoms@1.1.1:
     dependencies:
       es-errors: 1.3.0
-    optional: true
 
   es-set-tostringtag@2.1.0:
     dependencies:
@@ -2910,7 +2901,6 @@ snapshots:
       get-intrinsic: 1.3.0
       has-tostringtag: 1.0.2
       hasown: 2.0.2
-    optional: true
 
   esbuild@0.25.12:
     optionalDependencies:
@@ -2945,8 +2935,7 @@ snapshots:
 
   estree-walker@2.0.2: {}
 
-  event-target-shim@5.0.1:
-    optional: true
+  event-target-shim@5.0.1: {}
 
   exsolve@1.0.8: {}
 
@@ -2976,8 +2965,7 @@ snapshots:
       mlly: 1.8.0
       rollup: 4.53.2
 
-  form-data-encoder@1.7.2:
-    optional: true
+  form-data-encoder@1.7.2: {}
 
   form-data@4.0.4:
     dependencies:
@@ -2986,13 +2974,11 @@ snapshots:
       es-set-tostringtag: 2.1.0
       hasown: 2.0.2
       mime-types: 2.1.35
-    optional: true
 
   formdata-node@4.4.1:
     dependencies:
       node-domexception: 1.0.0
       web-streams-polyfill: 4.0.0-beta.3
-    optional: true
 
   fraction.js@5.3.4: {}
 
@@ -3013,13 +2999,11 @@ snapshots:
       has-symbols: 1.1.0
       hasown: 2.0.2
       math-intrinsics: 1.1.0
-    optional: true
 
   get-proto@1.0.1:
     dependencies:
       dunder-proto: 1.0.1
       es-object-atoms: 1.1.1
-    optional: true
 
   giget@2.0.0:
     dependencies:
@@ -3034,16 +3018,13 @@ snapshots:
     dependencies:
       is-glob: 4.0.3
 
-  gopd@1.2.0:
-    optional: true
+  gopd@1.2.0: {}
 
-  has-symbols@1.1.0:
-    optional: true
+  has-symbols@1.1.0: {}
 
   has-tostringtag@1.0.2:
     dependencies:
       has-symbols: 1.1.0
-    optional: true
 
   hasown@2.0.2:
     dependencies:
@@ -3054,7 +3035,6 @@ snapshots:
   humanize-ms@1.2.1:
     dependencies:
       ms: 2.1.3
-    optional: true
 
   ini@5.0.0: {}
 
@@ -3101,8 +3081,7 @@ snapshots:
       "@babel/types": 7.28.5
       source-map-js: 1.2.1
 
-  math-intrinsics@1.1.0:
-    optional: true
+  math-intrinsics@1.1.0: {}
 
   mdn-data@2.0.28: {}
 
@@ -3115,13 +3094,11 @@ snapshots:
       braces: 3.0.3
       picomatch: 2.3.1
 
-  mime-db@1.52.0:
-    optional: true
+  mime-db@1.52.0: {}
 
   mime-types@2.1.35:
     dependencies:
       mime-db: 1.52.0
-    optional: true
 
   mkdist@2.4.1(typescript@5.8.3):
     dependencies:
@@ -3148,20 +3125,17 @@ snapshots:
       pkg-types: 1.3.1
       ufo: 1.6.1
 
-  ms@2.1.3:
-    optional: true
+  ms@2.1.3: {}
 
   nanoid@3.3.11: {}
 
-  node-domexception@1.0.0:
-    optional: true
+  node-domexception@1.0.0: {}
 
   node-fetch-native@1.6.7: {}
 
   node-fetch@2.7.0:
     dependencies:
       whatwg-url: 5.0.0
-    optional: true
 
   node-releases@2.0.27: {}
 
@@ -3519,8 +3493,7 @@ snapshots:
     dependencies:
       is-number: 7.0.0
 
-  tr46@0.0.3:
-    optional: true
+  tr46@0.0.3: {}
 
   tslib@2.8.1:
     optional: true
@@ -3563,8 +3536,7 @@ snapshots:
       - vue-sfc-transformer
       - vue-tsc
 
-  undici-types@5.26.5:
-    optional: true
+  undici-types@5.26.5: {}
 
   undici-types@7.16.0: {}
 
@@ -3584,14 +3556,11 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  web-streams-polyfill@4.0.0-beta.3:
-    optional: true
+  web-streams-polyfill@4.0.0-beta.3: {}
 
-  webidl-conversions@3.0.1:
-    optional: true
+  webidl-conversions@3.0.1: {}
 
   whatwg-url@5.0.0:
     dependencies:
       tr46: 0.0.3
       webidl-conversions: 3.0.1
-    optional: true

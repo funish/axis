@@ -12,16 +12,7 @@ import type {
 export interface CloudflareDriverOptions extends DriverOptions, ClientOptions {}
 
 // Cloudflare DNS record type mapping
-type CloudflareDnsRecordType =
-  | "A"
-  | "AAAA"
-  | "CNAME"
-  | "MX"
-  | "TXT"
-  | "SRV"
-  | "NS"
-  | "PTR"
-  | "CAA";
+type CloudflareDnsRecordType = Exclude<RecordListParams["type"], undefined>;
 
 export default function cloudflareDriver(
   options: CloudflareDriverOptions,
@@ -63,7 +54,7 @@ export default function cloudflareDriver(
 
       // Get records of specified type
       const recordType =
-        options?.type?.toUpperCase() as CloudflareDnsRecordType;
+        options?.type?.toUpperCase() as RecordListParams["type"];
       const recordName = options?.name
         ? `${options.name}.${domain}`
         : undefined;
