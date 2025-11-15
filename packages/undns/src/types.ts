@@ -1,16 +1,4 @@
 import type {
-  AnyARecord,
-  AnyAaaaRecord,
-  AnyCaaRecord,
-  AnyCnameRecord,
-  AnyMxRecord,
-  AnyNaptrRecord,
-  AnyNsRecord,
-  AnyPtrRecord,
-  AnySoaRecord,
-  AnySrvRecord,
-  AnyTlsaRecord,
-  AnyTxtRecord,
   AnyRecord,
   CaaRecord,
   MxRecord,
@@ -21,19 +9,7 @@ import type {
 } from "node:dns";
 
 // Unified DNS record type using Node.js standard types
-export type DNSRecord =
-  | AnyARecord
-  | AnyAaaaRecord
-  | AnyCaaRecord
-  | AnyCnameRecord
-  | AnyMxRecord
-  | AnyNaptrRecord
-  | AnyNsRecord
-  | AnyPtrRecord
-  | AnySoaRecord
-  | AnySrvRecord
-  | AnyTlsaRecord
-  | AnyTxtRecord;
+export type DNSRecord = AnyRecord & { id?: string };
 
 // Helper types for raw DNS resolution results
 export type RawDNSResult =

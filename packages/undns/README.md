@@ -104,8 +104,10 @@ if (recordToRemove) {
 // Node.js DNS driver (read-only)
 import nodeDriver from "undns/drivers/node";
 
+// Cloudflare DNS driver
+import cloudflareDriver from "undns/drivers/cloudflare";
+
 // Future drivers will be available:
-// import cloudflareDriver from 'undns/drivers/cloudflare'
 // import vercelDriver from 'undns/drivers/vercel'
 // import dnspodDriver from 'undns/drivers/dnspod'
 ```
