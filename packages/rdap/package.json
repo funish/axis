@@ -1,7 +1,7 @@
 {
-  "name": "undns",
-  "version": "0.0.3",
-  "description": "Unified DNS management library for multi-provider DNS operations",
+  "name": "rdap",
+  "version": "0.0.4",
+  "description": "A modern RDAP (Registration Data Access Protocol) client.",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "files": [
@@ -11,31 +11,22 @@
     ".": {
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
-    },
-    "./drivers/*": {
-      "import": "./dist/drivers/*.mjs",
-      "require": "./dist/drivers/*.cjs",
-      "types": "./dist/drivers/*.d.ts"
     }
   },
   "scripts": {
-    "dev": "unbuild --stub",
-    "prepack": "unbuild"
+    "build": "unbuild",
+    "prepack": "pnpm build"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/funish/axis.git"
   },
   "keywords": [
-    "dns",
-    "dns-management",
-    "cloudflare",
-    "vercel",
-    "dnspod",
+    "rdap",
+    "whois",
     "domain",
-    "records",
-    "typescript",
-    "nodejs"
+    "ip",
+    "asn"
   ],
   "author": {
     "name": "Demo Macro",
@@ -47,12 +38,8 @@
     "url": "https://github.com/funish/axis/issues"
   },
   "homepage": "https://github.com/funish/axis#readme",
-  "peerDependencies": {
-    "cloudflare": "^5.2.0"
-  },
-  "peerDependenciesMeta": {
-    "cloudflare": {
-      "optional": true
-    }
+  "dependencies": {
+    "ipdo": "workspace:*",
+    "ofetch": "1.4.1"
   }
 }

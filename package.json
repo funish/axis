@@ -1,7 +1,7 @@
 {
-  "name": "@demomacro/undns",
+  "name": "axis-monorepo",
   "version": "0.0.0",
-  "description": "Unified DNS management library for multi-provider DNS operations",
+  "description": "Unified network toolkit for IP address manipulation, RDAP operations, and DNS management",
   "private": true,
   "scripts": {
     "dev": "pnpm -r prepack --stub",
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DemoMacro/undns.git"
+    "url": "git+https://github.com/funish/axis.git"
   },
   "keywords": [
     "dns",
@@ -30,9 +30,9 @@
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/DemoMacro/undns/issues"
+    "url": "https://github.com/funish/axis/issues"
   },
-  "homepage": "https://github.com/DemoMacro/undns#readme",
+  "homepage": "https://github.com/funish/axis#readme",
   "devDependencies": {
     "@funish/basis": "0.1.2",
     "@prettier/plugin-oxc": "0.0.4",

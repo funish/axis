@@ -1,14 +1,16 @@
-# UnDns
+# Axis
 
-![GitHub](https://img.shields.io/github/license/DemoMacro/undns)
+![GitHub](https://img.shields.io/github/license/funish/axis)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](https://www.contributor-covenant.org/version/2/1/code_of_conduct/)
 
-> Unified DNS management library for multi-provider DNS operations
+> Unified network toolkit for IP address manipulation, RDAP operations, and DNS management
 
 ## Packages
 
 This is a monorepo that contains the following packages:
 
+- **[ipdo](./packages/ipdo/README.md)** - Powerful IP address manipulation library
+- **[rdap](./packages/rdap/README.md)** - Modern RDAP (Registration Data Access Protocol) client
 - **[undns](./packages/undns/README.md)** - Core DNS management library with unified API
 
 ## Quick Start
@@ -17,8 +19,8 @@ This is a monorepo that contains the following packages:
 
 ```bash
 # Clone the repository
-git clone https://github.com/DemoMacro/undns.git
-cd undns
+git clone https://github.com/funish/axis.git
+cd axis
 
 # Install dependencies
 pnpm install
@@ -62,24 +64,6 @@ pnpm lint
 bun playground/drivers/node.ts
 ```
 
-## Project Structure
-
-```
-undns/
-├── packages/
-│   └── undns/                 # Core library
-│       ├── src/
-│       │   ├── dns.ts         # DNS manager implementation
-│       │   ├── types.ts       # Type definitions
-│       │   └── drivers/       # DNS provider drivers
-│       │       └── node.ts    # Node.js DNS driver
-│       └── dist/              # Built files
-├── playground/
-│   └── drivers/
-│       └── node.ts            # Test examples
-└── README.md                  # This file
-```
-
 ## Contributing
 
 We welcome contributions! Here's how to get started:
@@ -90,14 +74,14 @@ We welcome contributions! Here's how to get started:
 2. **Clone your fork**:
 
    ```bash
-   git clone https://github.com/YOUR_USERNAME/undns.git
-   cd undns
+   git clone https://github.com/YOUR_USERNAME/axis.git
+   cd axis
    ```
 
 3. **Add upstream remote**:
 
    ```bash
-   git remote add upstream https://github.com/DemoMacro/undns.git
+   git remote add upstream https://github.com/funish/axis.git
    ```
 
 4. **Install dependencies**:
@@ -115,15 +99,14 @@ We welcome contributions! Here's how to get started:
 ### Development Workflow
 
 1. **Code**: Follow our project standards
-2. **Test**: `pnpm build && <test your provider>`
+2. **Test**: `pnpm build`
 3. **Commit**: Use conventional commits (`feat:`, `fix:`, etc.)
 4. **Push**: Push to your fork
 5. **Submit**: Create a Pull Request to upstream repository
 
 ## Support & Community
 
-- 📫 [Report Issues](https://github.com/DemoMacro/undns/issues)
-- 📚 [Package Documentation](./packages/undns/README.md)
+- 📫 [Report Issues](https://github.com/funish/axis/issues)
 
 ## License
 
