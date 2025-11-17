@@ -6,6 +6,7 @@ export default defineBuildConfig({
     "src/index",
     "src/types",
     "src/drivers/node",
+    "src/drivers/doh",
     "src/drivers/cloudflare",
     "src/drivers/null",
   ],
