@@ -33,6 +33,9 @@ importers:
 
   packages/rdap:
     dependencies:
+      h3:
+        specifier: 2.0.1-rc.5
+        version: 2.0.1-rc.5
       ipdo:
         specifier: workspace:*
         version: link:../ipdo
@@ -1421,6 +1424,18 @@ packages:
       }
     engines: { node: ">= 0.4" }
 
+  h3@2.0.1-rc.5:
+    resolution:
+      {
+        integrity: sha512-qkohAzCab0nLzXNm78tBjZDvtKMTmtygS8BJLT3VPczAQofdqlFXDPkXdLMJN4r05+xqneG8snZJ0HgkERCZTg==,
+      }
+    engines: { node: ">=20.11.1" }
+    peerDependencies:
+      crossws: ^0.4.1
+    peerDependenciesMeta:
+      crossws:
+        optional: true
+
   has-symbols@1.1.0:
     resolution:
       {
@@ -2136,6 +2151,12 @@ packages:
     engines: { node: ">=18.0.0", npm: ">=8.0.0" }
     hasBin: true
 
+  rou3@0.7.10:
+    resolution:
+      {
+        integrity: sha512-aoFj6f7MJZ5muJ+Of79nrhs9N3oLGqi2VEMe94Zbkjb6Wupha46EuoYgpWSOZlXww3bbd8ojgXTAA2mzimX5Ww==,
+      }
+
   run-parallel@1.2.0:
     resolution:
       {
@@ -2176,6 +2197,14 @@ packages:
         integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==,
       }
     engines: { node: ">=0.10.0" }
+
+  srvx@0.9.6:
+    resolution:
+      {
+        integrity: sha512-5L4rT6qQqqb+xcoDoklUgCNdmzqJ6vbcDRwPVGRXewF55IJH0pqh0lQlrJ266ZWTKJ4mfeioqHQJeAYesS+RrQ==,
+      }
+    engines: { node: ">=20.16.0" }
+    hasBin: true
 
   stylehacks@7.0.7:
     resolution:
@@ -3043,6 +3072,11 @@ snapshots:
 
   gopd@1.2.0: {}
 
+  h3@2.0.1-rc.5:
+    dependencies:
+      rou3: 0.7.10
+      srvx: 0.9.6
+
   has-symbols@1.1.0: {}
 
   has-tostringtag@1.0.2:
@@ -3479,6 +3513,8 @@ snapshots:
       "@rollup/rollup-win32-x64-msvc": 4.53.2
       fsevents: 2.3.3
 
+  rou3@0.7.10: {}
+
   run-parallel@1.2.0:
     dependencies:
       queue-microtask: 1.2.3
@@ -3492,6 +3528,8 @@ snapshots:
   semver@7.7.3: {}
 
   source-map-js@1.2.1: {}
+
+  srvx@0.9.6: {}
 
   stylehacks@7.0.7(postcss@8.5.6):
     dependencies:

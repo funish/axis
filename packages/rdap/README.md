@@ -1,6 +1,6 @@
 # rdap 🌐
 
-A modern RDAP (Registration Data Access Protocol) client implementation following ICANN standards.
+A modern RDAP (Registration Data Access Protocol) client and server implementation following ICANN standards.
 
 ## ✨ Features
 
@@ -19,6 +19,8 @@ A modern RDAP (Registration Data Access Protocol) client implementation followin
 - 🔒 Secure access support (HTTPS and authentication)
 - 📄 Pagination support for large responses
 - 🧩 Functional programming approach - pure functions only
+- 🚀 Built-in RDAP server with h3 integration
+- 🔄 Server supports custom data providers and proxying
 
 ## 📥 Installation
 
@@ -44,6 +46,7 @@ import {
   queryNameserver,
   queryEntity,
   queryHelp,
+  createRdapServer,
 } from "rdap";
 
 // Query domain information
@@ -96,11 +99,78 @@ const domainWithCustomServer = await queryDomain("example.com", {
 const nameserverWithType = await queryNameserver("ns1.example.com", {
   type: "nameserver", // Explicitly specify nameserver query
 });
+
+// Create and start RDAP server
+const server = createRdapServer();
+server.serve(8080);
+console.log("RDAP Server running on http://localhost:8080");
 ```
 
 ## 🔧 Advanced Usage
 
-### 🛠️ Using Custom RDAP Servers
+### 🚀 RDAP Server
+
+#### Basic Server
+
+```typescript
+import { createRdapServer, createRdapHandler } from "rdap";
+
+// Create and start RDAP server
+const server = createRdapServer();
+server.serve(8080);
+// RDAP Server running on http://localhost:8080
+
+// Available endpoints:
+// GET /help - Server help
+// GET /domain/example.com - Domain info
+// GET /ip/8.8.8.8 - IP info
+// GET /autnum/15169 - ASN info
+// GET /nameserver/ns1.example.com - Nameserver info
+// GET /entity/ABC123-EXAMPLE - Entity info
+```
+
+#### Server with Custom Base URL
+
+```typescript
+const server = createRdapServer({
+  baseUrl: "https://rdap.arin.net/registry",
+});
+server.serve(8080);
+```
+
+#### Server with Custom Data Provider
+
+```typescript
+const server = createRdapServer({
+  dataProvider: async (query, type) => {
+    console.log(`${type}: ${query}`);
+
+    // Return custom data
+    return {
+      objectClassName: type,
+      handle: `MOCK_${query}`,
+    };
+  },
+});
+server.serve(8080);
+```
+
+#### Using Handler Directly
+
+```typescript
+import { createApp } from "h3";
+
+const handler = createRdapHandler({
+  baseUrl: "https://rdap.example.com",
+});
+
+const app = createApp();
+app.use(handler);
+
+// Start with your own server setup
+```
+
+### 🛠️ Using Custom RDAP Servers (Client)
 
 ```typescript
 import { queryRDAP } from "rdap";
@@ -222,6 +292,35 @@ Query entity information with optional configuration.
 #### `queryHelp<T = RdapHelp>(options?: RdapOptions): Promise<T>`
 
 Query RDAP help information from the server. Returns server capabilities, conformance levels, and reverse search properties.
+
+### 🚀 Server Functions
+
+#### `createRdapServer(options?: RdapServerOptions): { handler: EventHandlerWithFetch, serve: (port?: number) => void }`
+
+Create a complete RDAP server with convenience wrapper.
+
+**Parameters:**
+
+- `options` - Optional server configuration object
+  - `baseUrl?` - Custom RDAP server URL to proxy requests to
+  - `dataProvider?` - Custom data handler for local responses
+  - `authorize?` - Authorization function for requests
+  - `fetchOptions?` - Custom fetch options for proxied requests
+  - `resolvePath?` - Custom path resolver function
+
+**Returns:**
+
+- Object with `handler` and `serve(port)` method
+
+#### `createRdapHandler(options?: RdapServerOptions): EventHandlerWithFetch`
+
+Create an RDAP handler that can be used with h3 or other web frameworks.
+
+**Parameters:** Same as `createRdapServer`
+
+**Returns:**
+
+- Event handler that can be used with h3 apps
 
 ### 🔧 Utility Functions
 

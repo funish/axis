@@ -10,7 +10,17 @@
 export type RdapConformance =
   | "rdap_level_0"
   | "icann_rdap_response_profile_0"
-  | "icann_rdap_technical_implementation_guide_0";
+  | "icann_rdap_technical_implementation_guide_0"
+  | "nro_rdap_profile_0"
+  | "cidr0"
+  | "nro_rdap_profile_asn_flat_0"
+  | "arin_originas0"
+  | "rirSearch1"
+  | "ips"
+  | "ipSearchResults"
+  | "autnums"
+  | "autnumSearchResults"
+  | "reverse_search";
 
 /**
  * Common RDAP object fields

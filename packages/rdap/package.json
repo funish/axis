@@ -1,7 +1,7 @@
 {
   "name": "rdap",
-  "version": "0.0.7",
-  "description": "A modern RDAP (Registration Data Access Protocol) client.",
+  "version": "0.0.8",
+  "description": "A modern RDAP (Registration Data Access Protocol) client and server implementation following ICANN standards.",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "files": [
@@ -39,6 +39,7 @@
   },
   "homepage": "https://github.com/funish/axis#readme",
   "dependencies": {
+    "h3": "2.0.1-rc.5",
     "ipdo": "workspace:*",
     "ofetch": "1.4.1"
   }
