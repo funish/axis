@@ -69,6 +69,10 @@ const nsInfo = await queryNameserver("ns1.example.com");
 const entityInfo = await queryEntity("ABC123-EXAMPLE");
 // Returns: RdapEntity with entity details, roles, etc.
 
+// Query help information
+const helpInfo = await queryHelp();
+// Returns: RDAP server help and capability information
+
 // Generic query with options
 const data = await queryRDAP("example.com", {
   baseUrl: "https://custom-rdap-server.com",
@@ -198,6 +202,10 @@ Query nameserver information.
 
 Query entity information.
 
+#### `queryHelp(): Promise<any>`
+
+Query RDAP help information from the server.
+
 ### 🔧 Utility Functions
 
 #### `getQueryType(query: string): RdapQueryType`
@@ -256,7 +264,7 @@ interface RdapOptions {
 
 ## 📖 Standards Compliance
 
-This implementation follows these RDAP-related standards:
+This implementation strictly follows these RDAP-related standards:
 
 - 📘 [RFC 7480](https://tools.ietf.org/html/rfc7480) - HTTP Usage in RDAP
 - 🔒 [RFC 7481](https://tools.ietf.org/html/rfc7481) - Security Services for RDAP
@@ -264,6 +272,17 @@ This implementation follows these RDAP-related standards:
 - 📋 [RFC 7483](https://tools.ietf.org/html/rfc7483) - RDAP JSON Responses
 - 🔄 [RFC 8056](https://tools.ietf.org/html/rfc8056) - EPP and RDAP Status Mapping
 - ✅ [ICANN RDAP Response Profile](https://www.icann.org/rdap)
+
+### ✅ Specification Compliance Features
+
+- **HTTP Method**: Uses GET for all RDAP queries as required by RFC 7482
+- **Content Negotiation**: Sends `Accept: application/rdap+json` header
+- **User-Agent**: Includes proper client identification
+- **URL Structure**: Follows `{baseUrl}/{queryType}/{query}` pattern
+- **Error Handling**: Implements comprehensive HTTP status code handling
+- **Help Support**: Provides `queryHelp()` for server capability discovery
+- **Bootstrap Service**: Uses IANA official bootstrap data for server discovery
+- **Language Support**: Includes `Accept-Language` header for internationalization
 
 ## 📄 License
 

@@ -31,7 +31,7 @@ import {
 /**
  * Get bootstrap metadata from IANA
  */
-async function getBootstrapMetadata(
+export async function getBootstrapMetadata(
   type: RdapBootstrapType,
   fetch = false,
 ): Promise<RdapBootstrapMetadata> {
@@ -63,7 +63,7 @@ async function getBootstrapMetadata(
 /**
  * Find RDAP server for a query
  */
-async function findBootstrapServer(
+export async function findBootstrapServer(
   type: RdapBootstrapType,
   query: string,
 ): Promise<string> {
@@ -110,7 +110,7 @@ async function findBootstrapServer(
 /**
  * Get server URL for a query
  */
-async function getServerUrl(
+export async function getServerUrl(
   query: string,
   type?: RdapQueryType,
   options?: RdapOptions,
@@ -151,6 +151,8 @@ export async function queryRDAP<T = RdapResponse>(
     const response = await ofetch<T>(url, {
       headers: {
         Accept: "application/rdap+json",
+        "User-Agent": "axis-rdap-client/0.0.4",
+        "Accept-Language": "en",
       },
       ...options?.fetchOptions,
     });
@@ -160,14 +162,24 @@ export async function queryRDAP<T = RdapResponse>(
     const fetchError = error as FetchError;
     const statusCode = fetchError?.response?.status;
 
+    // Handle HTTP error status codes according to RFC 7482
     if (statusCode === 404) {
       throw new Error(`RDAP resource not found: ${query}`);
     }
     if (statusCode === 429) {
       throw new Error(`RDAP rate limit exceeded for: ${query}`);
     }
-    if (statusCode === 401 || statusCode === 403) {
-      throw new Error(`RDAP authentication failed for: ${query}`);
+    if (statusCode === 401) {
+      throw new Error(`RDAP authentication required for: ${query}`);
+    }
+    if (statusCode === 403) {
+      throw new Error(`RDAP access forbidden for: ${query}`);
+    }
+    if (statusCode === 400) {
+      throw new Error(`RDAP bad request for: ${query}`);
+    }
+    if (statusCode === 500) {
+      throw new Error(`RDAP server error for: ${query}`);
     }
 
     throw new Error(`RDAP query failed for ${query}: ${String(error)}`);
@@ -197,4 +209,11 @@ export async function queryIP<T = RdapIpNetwork>(ip: string): Promise<T> {
 
 export async function queryASN<T = RdapAutnum>(asn: string): Promise<T> {
   return queryRDAP<T>(asn);
+}
+
+/**
+ * Query RDAP help information
+ */
+export async function queryHelp(): Promise<any> {
+  return queryRDAP("help");
 }

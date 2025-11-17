@@ -29,22 +29,22 @@ importers:
         specifier: 3.6.1
         version: 3.6.1(typescript@5.8.3)
 
+  packages/ipdo: {}
+
   packages/rdap:
     dependencies:
-      ofetch:
-        specifier: 1.4.1
-        version: 1.4.1
       ipdo:
         specifier: workspace:*
         version: link:../ipdo
+      ofetch:
+        specifier: 1.4.1
+        version: 1.4.1
 
   packages/undns:
     dependencies:
       cloudflare:
         specifier: ^5.2.0
         version: 5.2.0
-
-  packages/ipdo: {}
 
   playground:
     dependencies:

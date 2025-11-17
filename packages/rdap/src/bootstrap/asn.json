@@ -1,6 +1,6 @@
 {
   "description": "RDAP bootstrap file for Autonomous System Number allocations",
-  "publication": "2024-04-10T20:00:01Z",
+  "publication": "2025-01-17T20:00:02Z",
   "services": [
     [
       ["36864-37887", "327680-328703", "328704-329727"],
@@ -42,7 +42,9 @@
         "149818-150841",
         "150842-151865",
         "151866-152889",
-        "152890-153913"
+        "152890-153913",
+        "153914-154937",
+        "154938-155961"
       ],
       ["https://rdap.apnic.net/"]
     ],
