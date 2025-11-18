@@ -9,7 +9,7 @@
 
 ## Features
 
-- 🌐 **Multi-Provider Support**: Unified API for Cloudflare, Vercel, DNSPod and more
+- 🌐 **Multi-Driver Support**: Unified API for Node.js DNS, Cloudflare, DNS over HTTPS
 - 🔄 **Driver Pattern**: Consistent API design across different DNS providers
 - 📝 **TypeScript First**: Full type safety with comprehensive DNS record types
 - 🔧 **Flexible Operations**: Support for read/write operations where providers allow
@@ -104,12 +104,14 @@ if (recordToRemove) {
 // Node.js DNS driver (read-only)
 import nodeDriver from "undns/drivers/node";
 
-// Cloudflare DNS driver
+// Cloudflare DNS driver (read-write)
 import cloudflareDriver from "undns/drivers/cloudflare";
 
-// Future drivers will be available:
-// import vercelDriver from 'undns/drivers/vercel'
-// import dnspodDriver from 'undns/drivers/dnspod'
+// DNS over HTTPS driver (read-only)
+import dohDriver from "undns/drivers/doh";
+
+// Null driver (for testing)
+import nullDriver from "undns/drivers/null";
 ```
 
 ## API Reference

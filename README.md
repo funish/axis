@@ -29,41 +29,36 @@ pnpm install
 ### Basic Usage
 
 ```typescript
+// IP address manipulation with ipdo
+import { isValidIP, parseCIDR, ipInRange } from "ipdo";
+
+console.log(isValidIP("192.168.1.1")); // true
+const range = parseCIDR("192.168.0.0/24");
+console.log(ipInRange("192.168.0.0/24", "192.168.0.1")); // true
+
+// DNS management with undns
 import { createDNSManager } from "undns";
 import nodeDriver from "undns/drivers/node";
 
-// Create DNS manager with Node.js driver
 const dns = createDNSManager({
   driver: nodeDriver({
     servers: ["8.8.8.8", "1.1.1.1"],
   }),
 });
 
-// Query DNS records
 const records = await dns.getRecords("example.com");
 console.log(`Found ${records.length} records`);
 
-// Check for specific record type
-const hasMxRecord = await dns.hasRecord("example.com", { type: "MX" });
-console.log("Has MX record:", hasMxRecord);
-```
+// RDAP queries with rdap
+import { queryDomain, queryIP, queryASN } from "rdap";
 
-### DNS over HTTPS (DOH)
+const domainInfo = await queryDomain("example.com");
+const ipInfo = await queryIP("8.8.8.8");
+const asnInfo = await queryASN("15169");
 
-```typescript
-import { createDNSManager } from "undns";
-import dohDriver from "undns/drivers/doh";
-
-// Create DNS manager with DOH driver
-const dns = createDNSManager({
-  driver: dohDriver({
-    endpoint: "https://one.one.one.one/dns-query",
-  }),
-});
-
-// Query DNS records over HTTPS
-const records = await dns.getRecords("example.com");
-console.log(`Found ${records.length} records via DOH`);
+console.log("Domain:", domainInfo.handle);
+console.log("IP Network:", ipInfo.handle);
+console.log("ASN:", asnInfo.handle);
 ```
 
 ### Development
