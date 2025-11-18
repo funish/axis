@@ -7,7 +7,7 @@
 import { ofetch } from "ofetch";
 import type { FetchError } from "ofetch";
 import { ipInRange } from "ipdo";
-import { asn, dns, ipv4, ipv6, objectTags } from "./bootstrap/data";
+import { asn, dns, ipv4, ipv6, objectTags } from "./bootstrap";
 import {
   RdapBootstrapType,
   RdapBootstrapMetadata,

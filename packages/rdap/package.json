@@ -1,6 +1,6 @@
 {
   "name": "rdap",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "A modern RDAP (Registration Data Access Protocol) client and server implementation following ICANN standards.",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -11,9 +11,14 @@
     ".": {
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
+    },
+    "./server": {
+      "import": "./dist/server.mjs",
+      "require": "./dist/server.cjs"
     }
   },
   "scripts": {
+    "dev": "unbuild --stub",
     "build": "unbuild",
     "prepack": "pnpm build"
   },

@@ -4,8 +4,8 @@
   "description": "Unified network toolkit for IP address manipulation, RDAP operations, and DNS management",
   "private": true,
   "scripts": {
-    "dev": "pnpm -r prepack --stub",
-    "build": "pnpm -r prepack",
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build",
     "lint": "basis lint --all",
     "postinstall": "pnpm dev && basis git setup"
   },

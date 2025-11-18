@@ -9,12 +9,14 @@ import {
   EventHandlerRequest,
   EventHandlerWithFetch,
   H3,
+  H3Event,
   serve,
 } from "h3";
 import { HTTPError } from "h3";
-import type { Driver, DNSRecord, DOHResponse } from "../types";
-import { createDNSManager } from "../dns";
+import type { Driver, DNSRecord, DOHResponse } from "..";
+import { createDNSManager } from "..";
 import type { AnyRecord } from "node:dns";
+import { isIPv4, ipv4ToInt, ipv6ToBigInt } from "ipdo";
 
 // DNS type mapping: string to number
 const DNS_TYPE_NUMBERS: Record<string, number> = {
@@ -31,7 +33,58 @@ const DNS_TYPE_NUMBERS: Record<string, number> = {
   ANY: 255,
 };
 
-const SupportedMethods = ["GET", "HEAD"];
+// Reverse mapping: number to string
+const DNS_TYPE_STRINGS: Record<number, string> = {};
+Object.entries(DNS_TYPE_NUMBERS).forEach(([key, value]) => {
+  DNS_TYPE_STRINGS[value] = key;
+});
+
+// Helper to get DNS type string from number
+function getDnsTypeString(typeNumber: number): string {
+  return DNS_TYPE_STRINGS[typeNumber] || "A";
+}
+
+/**
+ * Enhanced IPv6 address parser that supports compressed notation (::)
+ */
+function parseIPv6(data: string): bigint {
+  // Handle compressed IPv6 addresses with ::
+  if (data.includes("::")) {
+    const parts = data.split(":");
+    const compressedIndex = parts.indexOf("");
+
+    // Count how many empty parts after compression
+    let emptyCount = 0;
+    for (let i = compressedIndex; i < parts.length; i++) {
+      if (parts[i] === "") emptyCount++;
+    }
+
+    // Calculate how many zeros to insert
+    const missingZeros = 8 - (parts.length - emptyCount) + 1;
+
+    const expandedParts: string[] = [];
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i] === "") {
+        if (i === 0 || i === parts.length - 1) {
+          continue; // Skip empty at start/end (leading/trailing ::)
+        }
+        // Insert missing zeros
+        for (let j = 0; j < missingZeros; j++) {
+          expandedParts.push("0");
+        }
+      } else {
+        expandedParts.push(parts[i]);
+      }
+    }
+
+    data = expandedParts.join(":");
+  }
+
+  // Now use ipdo's ipv6ToBigInt with expanded address
+  return ipv6ToBigInt(data);
+}
+
+const SupportedMethods = ["GET", "HEAD", "POST"];
 
 export interface DohServerOptions {
   /**
@@ -45,10 +98,6 @@ export interface DohServerOptions {
   authorize?: (request: any) => void | Promise<void>;
 }
 
-export type FetchHandler = (
-  req: globalThis.Request,
-) => globalThis.Response | Promise<globalThis.Response>;
-
 /**
  * Create a DNS over HTTPS (DoH) handler
  *
@@ -61,12 +110,27 @@ export type FetchHandler = (
  */
 export function createDohHandler(
   opts: DohServerOptions = {},
-): EventHandlerWithFetch<EventHandlerRequest, Promise<DOHResponse | string>> {
+): EventHandlerWithFetch<
+  EventHandlerRequest,
+  Promise<DOHResponse | string | ArrayBuffer>
+> {
   const dnsManager = createDNSManager({
     driver: opts.driver || { name: "default" },
   });
 
   const handler = defineHandler(async (event) => {
+    // Check if this is a DoH endpoint
+    const url = new URL(event.req.url || "");
+    const pathname = url.pathname;
+
+    // DoH requests should be on /dns-query path
+    if (pathname !== "/dns-query") {
+      throw new HTTPError({
+        statusCode: 404,
+        statusMessage: `Not Found: DoH endpoint is /dns-query, got ${pathname}`,
+      });
+    }
+
     // Validate method
     if (!SupportedMethods.includes(event.req.method)) {
       throw new HTTPError({
@@ -75,22 +139,114 @@ export function createDohHandler(
       });
     }
 
-    // Parse query parameters
-    const url = new URL(event.req.url || "");
-    const query = Object.fromEntries(url.searchParams.entries());
+    // Detect request format
+    const requestFormat = detectRequestFormat(event);
+    let name = "";
+    let type = "";
+    let doFlag = false;
+    let cdFlag = false;
 
-    // Validate required parameters
-    const name = query.name;
-    const type = (query.type || "A").toUpperCase();
+    // Handle different request formats
+    if (requestFormat === "wire") {
+      // Handle wireformat request
+      if (event.req.method === "GET") {
+        const url = new URL(event.req.url || "");
+        const dnsParam = url.searchParams.get("dns");
+        if (!dnsParam) {
+          throw new HTTPError({
+            statusCode: 400,
+            statusMessage: "Missing 'dns' parameter for wireformat request",
+          });
+        }
 
-    if (!name) {
-      throw new HTTPError({
-        statusCode: 400,
-        statusMessage: "Missing required parameter: name",
-      });
+        try {
+          // Base64URL decode
+          const base64 = dnsParam.replace(/-/g, "+").replace(/_/g, "/");
+          const decodedData = Uint8Array.from(atob(base64), (c) =>
+            c.charCodeAt(0),
+          );
+          const query = parseDNSWireFormat(decodedData.buffer);
+          if (!query) {
+            throw new HTTPError({
+              statusCode: 400,
+              statusMessage: "Invalid DNS wireformat message",
+            });
+          }
+          name = query.name.replace(/\.$/, ""); // Remove trailing dot
+          type = getDnsTypeString(query.type);
+          cdFlag = query.cdFlag; // Use parsed CD flag
+        } catch {
+          throw new HTTPError({
+            statusCode: 400,
+            statusMessage: "Failed to decode DNS wireformat message",
+          });
+        }
+      } else if (event.req.method === "POST") {
+        // Check Content-Type for POST requests
+        const contentType = event.req.headers.get("content-type") || "";
+        if (!contentType.includes("application/dns-message")) {
+          throw new HTTPError({
+            statusCode: 415,
+            statusMessage:
+              "Unsupported Media Type: content-type must be 'application/dns-message'",
+          });
+        }
+
+        const body = await event.req.arrayBuffer();
+        const query = parseDNSWireFormat(body);
+        if (!query) {
+          throw new HTTPError({
+            statusCode: 400,
+            statusMessage: "Invalid DNS wireformat message",
+          });
+        }
+        name = query.name.replace(/\.$/, "");
+        type = getDnsTypeString(query.type);
+        cdFlag = query.cdFlag; // Use parsed CD flag
+      }
+    } else {
+      // Handle JSON request
+      const url = new URL(event.req.url || "");
+      const query = Object.fromEntries(url.searchParams.entries());
+
+      name = query.name || "";
+      type = (query.type || "A").toUpperCase();
+
+      // Validate cd parameter
+      if (query.cd && !["0", "false", "1", "true"].includes(query.cd)) {
+        const errorResponse = {
+          error: `Invalid CD flag \`${query.cd}\`. Expected to be empty or one of \`0\`, \`false\`, \`1\`, or \`true\`.`,
+        };
+        return JSON.stringify(errorResponse);
+      }
+
+      // Validate do parameter
+      if (query.do && !["0", "false", "1", "true"].includes(query.do)) {
+        const errorResponse = {
+          error: `Invalid DO flag \`${query.do}\`. Expected to be empty or one of \`0\`, \`false\`, \`1\`, or \`true\`.`,
+        };
+        return JSON.stringify(errorResponse);
+      }
+
+      doFlag = query.do === "1" || query.do === "true";
+      cdFlag = query.cd === "1" || query.cd === "true";
+
+      if (!name) {
+        const errorResponse = { error: "Missing required parameter: name" };
+        return JSON.stringify(errorResponse);
+      }
     }
 
-    if (!DNS_TYPE_NUMBERS[type]) {
+    // For wireformat, type should already be converted to string by this point
+    // For JSON, type comes as string
+    if (!DNS_TYPE_NUMBERS.hasOwnProperty(type)) {
+      if (requestFormat === "json") {
+        const errorResponse = {
+          error: `Invalid type \`${type}\`. DNS record type not found.`,
+        };
+        return JSON.stringify(errorResponse);
+      }
+      // For wireformat, this means type conversion failed
       throw new HTTPError({
         statusCode: 400,
         statusMessage: `Invalid DNS record type: ${type}`,
@@ -100,8 +256,12 @@ export function createDohHandler(
     // Authorize request
     await opts.authorize?.({ name, type });
 
-    // Set headers
-    event.res.headers.set("Content-Type", "application/dns-json");
+    // Set headers based on format
+    if (requestFormat === "wire") {
+      event.res.headers.set("Content-Type", "application/dns-message");
+    } else {
+      event.res.headers.set("Content-Type", "application/dns-json");
+    }
     event.res.headers.set("Access-Control-Allow-Origin", "*");
 
     // Handle HEAD
@@ -118,8 +278,8 @@ export function createDohHandler(
       TC: false,
       RD: true,
       RA: true,
-      AD: false,
-      CD: query.cd === "1" || query.cd === "true",
+      AD: doFlag, // Set AD flag based on do parameter
+      CD: cdFlag,
       Question: [
         {
           name: name.endsWith(".") ? name : `${name}.`,
@@ -129,7 +289,14 @@ export function createDohHandler(
       Answer: records.map((record) => convertDNSRecordToDoHAnswer(record)),
     };
 
-    return JSON.stringify(response, null, 2);
+    // Return response in appropriate format
+    if (requestFormat === "wire") {
+      // For wireformat, return binary data
+      return convertToWireFormat(response);
+    } else {
+      // For JSON, return JSON string
+      return JSON.stringify(response, null, 2);
+    }
   });
 
   return handler;
@@ -141,7 +308,7 @@ export function createDohHandler(
 export function createDohServer(opts: DohServerOptions = {}): {
   handler: EventHandlerWithFetch<
     EventHandlerRequest,
-    Promise<DOHResponse | string>
+    Promise<DOHResponse | string | ArrayBuffer>
   >;
   serve: (port?: number) => void;
 } {
@@ -155,6 +322,354 @@ export function createDohServer(opts: DohServerOptions = {}): {
 }
 
 /**
+ * Parse DNS wireformat message to extract query info
+ */
+function parseDNSWireFormat(
+  buffer: ArrayBuffer,
+): { name: string; type: number; cdFlag: boolean } | null {
+  try {
+    const view = new DataView(buffer);
+
+    // Skip header (12 bytes)
+    const qdcount = view.getUint16(4, false); // Query count
+
+    if (qdcount === 0) return null;
+
+    // Parse DNS flags to get CD bit
+    const flags = view.getUint16(2, false);
+    const cdFlag = (flags & 0x0010) !== 0; // CD (Checking Disabled) flag
+
+    let offset = 12;
+
+    // Parse QNAME
+    const labels: string[] = [];
+    while (true) {
+      const length = view.getUint8(offset);
+      if (length === 0) break;
+      if (length > 63) return null; // Invalid label length
+
+      const label = new TextDecoder().decode(
+        buffer.slice(offset + 1, offset + 1 + length),
+      );
+      labels.push(label);
+      offset += 1 + length;
+    }
+
+    const name = labels.join(".") + ".";
+    offset += 1; // Skip null byte
+
+    // Parse QTYPE
+    const type = view.getUint16(offset, false);
+
+    return { name, type, cdFlag };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Convert DoH JSON response to DNS wireformat
+ */
+function convertToWireFormat(response: DOHResponse): ArrayBuffer {
+  const sections: Uint8Array[] = [];
+
+  // 1. DNS Header (12 bytes)
+  const header = new Uint8Array(12);
+  const headerView = new DataView(header.buffer);
+
+  // Transaction ID (2 bytes) - using 0x0000
+  headerView.setUint16(0, 0x0000, false);
+
+  // Flags (2 bytes)
+  let flags = 0x8180; // QR=1, RD=1, RA=1
+  if (response.TC) flags |= 0x0200;
+  if (response.AD) flags |= 0x0400;
+  if (response.CD) flags |= 0x0010;
+  if (response.Status) flags |= response.Status & 0x000f;
+  headerView.setUint16(2, flags, false);
+
+  // Record counts
+  headerView.setUint16(4, response.Question?.length || 0, false);
+  headerView.setUint16(6, response.Answer?.length || 0, false);
+  headerView.setUint16(8, response.Authority?.length || 0, false);
+  headerView.setUint16(10, response.Additional?.length || 0, false);
+  sections.push(header);
+
+  // 2. Question section
+  if (response.Question) {
+    for (const question of response.Question) {
+      sections.push(encodeQuestion(question));
+    }
+  }
+
+  // 3. Answer section
+  if (response.Answer) {
+    for (const answer of response.Answer) {
+      sections.push(encodeResourceRecord(answer));
+    }
+  }
+
+  // 4. Authority section
+  if (response.Authority) {
+    for (const authority of response.Authority) {
+      sections.push(encodeResourceRecord(authority));
+    }
+  }
+
+  // 5. Additional section
+  if (response.Additional) {
+    for (const additional of response.Additional) {
+      sections.push(encodeResourceRecord(additional));
+    }
+  }
+
+  // Combine all sections
+  const totalSize = sections.reduce((sum, section) => sum + section.length, 0);
+  const buffer = new ArrayBuffer(totalSize);
+  const view = new Uint8Array(buffer);
+  let offset = 0;
+
+  for (const section of sections) {
+    view.set(section, offset);
+    offset += section.length;
+  }
+
+  return buffer;
+}
+
+/**
+ * Encode DNS question section
+ */
+function encodeQuestion(question: { name: string; type: number }): Uint8Array {
+  const sections: Uint8Array[] = [];
+
+  // QNAME (compressed format)
+  sections.push(encodeDomainName(question.name));
+
+  // QTYPE (2 bytes)
+  const qtype = new Uint8Array(2);
+  const qtypeView = new DataView(qtype.buffer);
+  qtypeView.setUint16(0, question.type, false);
+  sections.push(qtype);
+
+  // QCLASS (2 bytes) - always IN (1)
+  const qclass = new Uint8Array(2);
+  const qclassView = new DataView(qclass.buffer);
+  qclassView.setUint16(0, 1, false);
+  sections.push(qclass);
+
+  return combineArrays(sections);
+}
+
+/**
+ * Encode DNS resource record
+ */
+function encodeResourceRecord(record: {
+  name: string;
+  type: number;
+  TTL: number;
+  data: string;
+}): Uint8Array {
+  const sections: Uint8Array[] = [];
+
+  // NAME (compressed format)
+  sections.push(encodeDomainName(record.name));
+
+  // TYPE (2 bytes)
+  const type = new Uint8Array(2);
+  const typeView = new DataView(type.buffer);
+  typeView.setUint16(0, record.type, false);
+  sections.push(type);
+
+  // CLASS (2 bytes) - always IN (1)
+  const rclass = new Uint8Array(2);
+  const rclassView = new DataView(rclass.buffer);
+  rclassView.setUint16(0, 1, false);
+  sections.push(rclass);
+
+  // TTL (4 bytes)
+  const ttl = new Uint8Array(4);
+  const ttlView = new DataView(ttl.buffer);
+  ttlView.setUint32(0, record.TTL, false);
+  sections.push(ttl);
+
+  // RDATA (variable length)
+  const rdLength = new Uint8Array(2);
+  const rdLengthView = new DataView(rdLength.buffer);
+
+  const rdData = encodeRData(record.type, record.data);
+  rdLengthView.setUint16(0, rdData.length, false);
+
+  sections.push(rdLength);
+  sections.push(rdData);
+
+  return combineArrays(sections);
+}
+
+/**
+ * Encode domain name without compression (simplified)
+ */
+function encodeDomainName(name: string): Uint8Array {
+  const labels = name.split(".").filter((label) => label.length > 0);
+  const sections: Uint8Array[] = [];
+
+  for (const label of labels) {
+    const labelBytes = new TextEncoder().encode(label);
+    sections.push(new Uint8Array([labelBytes.length])); // Length byte
+    sections.push(labelBytes); // Label content
+  }
+
+  // End with null byte for root
+  sections.push(new Uint8Array([0]));
+
+  return combineArrays(sections);
+}
+
+/**
+ * Encode RDATA based on record type
+ */
+function encodeRData(type: number, data: string): Uint8Array {
+  switch (type) {
+    case 1: {
+      // A record - 4 bytes IPv4
+      const aData = new Uint8Array(4);
+      try {
+        // Use ipdo's IPv4 validation and conversion
+        if (!isIPv4(data)) {
+          throw new Error(`Invalid IPv4 address: ${data}`);
+        }
+
+        const ipInt = ipv4ToInt(data);
+        aData[0] = (ipInt >> 24) & 0xff;
+        aData[1] = (ipInt >> 16) & 0xff;
+        aData[2] = (ipInt >> 8) & 0xff;
+        aData[3] = ipInt & 0xff;
+        return aData;
+      } catch (error) {
+        // Invalid IPv4 address, return zeros
+        console.error(`Invalid IPv4 address: ${data}`, error);
+        return aData;
+      }
+    }
+
+    case 28: {
+      // AAAA record - 16 bytes IPv6
+      const aaaaData = new Uint8Array(16);
+      try {
+        // Use enhanced IPv6 parser that supports compressed notation
+        const bigIntValue = parseIPv6(data);
+
+        // Convert BigInt to 16-byte array
+        for (let i = 0; i < 8; i++) {
+          const value = Number((bigIntValue >> BigInt((7 - i) * 16)) & 0xffffn);
+          aaaaData[i * 2] = (value >> 8) & 0xff;
+          aaaaData[i * 2 + 1] = value & 0xff;
+        }
+        return aaaaData;
+      } catch (error) {
+        // Invalid IPv6 address, return zeros
+        console.error(`Invalid IPv6 address: ${data}`, error);
+        return aaaaData;
+      }
+    }
+
+    case 5: // CNAME
+    case 2: // NS
+    case 12: // PTR
+      return encodeDomainName(data);
+
+    case 15: {
+      // MX record
+      const match = data.match(/^(\d+)\s+(.+)$/);
+      if (match) {
+        const exchangeName = encodeDomainName(match[2]);
+        const mxData = new Uint8Array(2 + exchangeName.length);
+        const mxView = new DataView(mxData.buffer);
+        mxView.setUint16(0, parseInt(match[1]), false);
+        mxData.set(exchangeName, 2);
+        return mxData;
+      }
+      break;
+    }
+
+    case 16: {
+      // TXT record
+      // TXT records: each entry prefixed with length byte
+      const sections: Uint8Array[] = [];
+      if (data) {
+        const textBytes = new TextEncoder().encode(data);
+        sections.push(new Uint8Array([textBytes.length]));
+        sections.push(textBytes);
+      }
+      return combineArrays(sections);
+    }
+
+    case 33: {
+      // SRV record
+      const srvMatch = data.match(/^(\d+)\s+(\d+)\s+(\d+)\s+(.+)$/);
+      if (srvMatch) {
+        const targetName = encodeDomainName(srvMatch[4]);
+        const srvData = new Uint8Array(6 + targetName.length);
+        const srvView = new DataView(srvData.buffer);
+        srvView.setUint16(0, parseInt(srvMatch[1]), false);
+        srvView.setUint16(2, parseInt(srvMatch[2]), false);
+        srvView.setUint16(4, parseInt(srvMatch[3]), false);
+        srvData.set(targetName, 6);
+        return srvData;
+      }
+      break;
+    }
+
+    default:
+      // For unknown types, encode as raw text
+      return new TextEncoder().encode(data);
+  }
+
+  return new Uint8Array(0);
+}
+
+/**
+ * Combine multiple Uint8Arrays
+ */
+function combineArrays(arrays: Uint8Array[]): Uint8Array {
+  const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+
+  for (const arr of arrays) {
+    result.set(arr, offset);
+    offset += arr.length;
+  }
+
+  return result;
+}
+
+/**
+ * Detect request format based on Accept header and URL parameters
+ */
+function detectRequestFormat(
+  event: H3Event<EventHandlerRequest>,
+): "json" | "wire" {
+  const url = new URL(event.req.url || "");
+  const hasDnsParam = url.searchParams.has("dns");
+
+  // If URL has 'dns' parameter, treat as wireformat regardless of Accept header
+  if (hasDnsParam) {
+    return "wire";
+  }
+
+  const accept = event.req.headers.get("accept") || "";
+  if (accept.includes("application/dns-json")) {
+    return "json";
+  }
+  if (accept.includes("application/dns-message")) {
+    return "wire";
+  }
+  // Default to JSON for backward compatibility
+  return "json";
+}
+
+/**
  * Convert DNS record to DoH answer format
  */
 function convertDNSRecordToDoHAnswer(record: DNSRecord): {
@@ -164,10 +679,21 @@ function convertDNSRecordToDoHAnswer(record: DNSRecord): {
   data: string;
 } {
   const type = DNS_TYPE_NUMBERS[record.type] || 1;
+
+  // Helper function to safely extract TTL from record
+  function getTTLFromRecord(rec: DNSRecord): number {
+    // Check if record has ttl property (A, AAAA, SOA, etc.)
+    if ("ttl" in rec && typeof rec.ttl === "number") {
+      return rec.ttl;
+    }
+    // CAA records and others don't have ttl, use default
+    return 300;
+  }
+
   const answer: { name: string; type: number; TTL: number; data: string } = {
     name: "",
     type,
-    TTL: 300,
+    TTL: getTTLFromRecord(record),
     data: "",
   };
 

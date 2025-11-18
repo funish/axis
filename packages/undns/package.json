@@ -1,6 +1,6 @@
 {
   "name": "undns",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Unified DNS management library for multi-provider DNS operations",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -16,11 +16,17 @@
       "import": "./dist/drivers/*.mjs",
       "require": "./dist/drivers/*.cjs",
       "types": "./dist/drivers/*.d.ts"
+    },
+    "./servers/*": {
+      "import": "./dist/servers/*.mjs",
+      "require": "./dist/servers/*.cjs",
+      "types": "./dist/servers/*.d.ts"
     }
   },
   "scripts": {
     "dev": "unbuild --stub",
-    "prepack": "unbuild"
+    "build": "unbuild",
+    "prepack": "pnpm build"
   },
   "repository": {
     "type": "git",
@@ -54,5 +60,9 @@
     "cloudflare": {
       "optional": true
     }
+  },
+  "dependencies": {
+    "h3": "2.0.1-rc.5",
+    "ipdo": "workspace:*"
   }
 }

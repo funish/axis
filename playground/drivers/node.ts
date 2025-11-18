@@ -1,5 +1,5 @@
 import { createDNSManager } from "undns";
-import nodeDriver from "undns/drivers/node";
+import nodeDriver from "../../packages/undns/src/drivers/node";
 import { groupRecordsByType, formatRecord } from "../utils";
 
 // Create DNS manager with Node.js driver

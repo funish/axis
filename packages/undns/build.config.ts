@@ -4,11 +4,28 @@ export default defineBuildConfig({
   declaration: true,
   entries: [
     "src/index",
-    "src/types",
-    "src/drivers/node",
-    "src/drivers/doh",
-    "src/drivers/cloudflare",
-    "src/drivers/null",
+    {
+      input: "src/drivers/",
+      outDir: "dist/drivers",
+      format: "esm",
+    },
+    {
+      input: "src/drivers/",
+      outDir: "dist/drivers",
+      format: "cjs",
+      ext: "cjs",
+    },
+    {
+      input: "src/servers/",
+      outDir: "dist/servers",
+      format: "esm",
+    },
+    {
+      input: "src/servers/",
+      outDir: "dist/servers",
+      format: "cjs",
+      ext: "cjs",
+    },
   ],
   rollup: {
     emitCJS: true,

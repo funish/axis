@@ -6,7 +6,7 @@ import type {
   DNSRecordInput,
   DriverOptions,
   RecordOptions,
-} from "../types";
+} from "..";
 
 // Use Cloudflare ClientOptions directly, only add DriverOptions extension
 export interface CloudflareDriverOptions extends DriverOptions, ClientOptions {}

@@ -1,5 +1,5 @@
 import { createDNSManager } from "undns";
-import dohDriver from "undns/drivers/doh";
+import dohDriver from "../../packages/undns/src/drivers/doh";
 import { groupRecordsByType, formatRecord } from "../utils";
 
 // Create DNS manager with DOH driver

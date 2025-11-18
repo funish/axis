@@ -48,6 +48,12 @@ importers:
       cloudflare:
         specifier: ^5.2.0
         version: 5.2.0
+      h3:
+        specifier: 2.0.1-rc.5
+        version: 2.0.1-rc.5
+      ipdo:
+        specifier: workspace:*
+        version: link:../ipdo
 
   playground:
     dependencies:

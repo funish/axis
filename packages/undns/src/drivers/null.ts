@@ -1,4 +1,4 @@
-import type { Driver, DNSRecord, DriverOptions } from "../types";
+import type { Driver, DNSRecord, DriverOptions } from "..";
 
 export default function nullDriver(options: DriverOptions = {}): Driver {
   return {

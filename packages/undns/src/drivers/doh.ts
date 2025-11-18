@@ -5,7 +5,7 @@ import type {
   DriverOptions,
   RecordOptions,
   DOHResponse,
-} from "../types";
+} from "..";
 
 export interface DOHDriverOptions extends DriverOptions {
   endpoint?: string;
