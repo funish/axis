@@ -11,7 +11,7 @@ export interface DOHDriverOptions extends DriverOptions {
   timeout?: number;
 }
 
-interface DOHResponse {
+export interface DOHResponse {
   Status: number;
   TC?: boolean;
   RD?: boolean;
@@ -174,12 +174,18 @@ export default function dohDriver(options: DOHDriverOptions = {}): Driver {
       case "CAA": {
         const caaMatch = data.match(/^(\d+)\s+(\d+)\s+"([^"]*)"$/);
         if (caaMatch) {
+          const critical = parseInt(caaMatch[1]);
+          const tag = caaMatch[2];
+          const value = caaMatch[3];
+
           const record = {
             type: "CAA" as const,
-            critical: parseInt(caaMatch[1]),
+            critical,
+            // Standard CaaRecord fields based on tag
+            ...(tag === "issue" && { issue: value }),
+            ...(tag === "iodef" && { iodef: value }),
+            ...(tag === "issuewild" && { issuewild: value }),
           };
-          const tag = caaMatch[2];
-          (record as any)[tag.toLowerCase()] = caaMatch[3];
           return record;
         }
         throw new Error(`Invalid CAA record format: ${data}`);

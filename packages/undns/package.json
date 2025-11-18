@@ -1,6 +1,6 @@
 {
   "name": "undns",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Unified DNS management library for multi-provider DNS operations",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",

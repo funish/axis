@@ -91,7 +91,7 @@ export default function nodeDriver(options: NodeDriverOptions = {}): Driver {
             });
           } else if (type === "MX") {
             // MX returns array of MX records
-            const mxRecords = results as MxRecord[];
+            const mxRecords = results as unknown as MxRecord[];
             mxRecords.forEach((record) => {
               records.push({
                 type: "MX",
@@ -101,7 +101,7 @@ export default function nodeDriver(options: NodeDriverOptions = {}): Driver {
             });
           } else if (type === "SRV") {
             // SRV returns array of SRV records
-            const srvRecords = results as SrvRecord[];
+            const srvRecords = results as unknown as SrvRecord[];
             srvRecords.forEach((record) => {
               records.push({
                 type: "SRV",
@@ -113,7 +113,7 @@ export default function nodeDriver(options: NodeDriverOptions = {}): Driver {
             });
           } else if (type === "CAA") {
             // CAA returns array of CAA records
-            const caaRecords = results as CaaRecord[];
+            const caaRecords = results as unknown as CaaRecord[];
             caaRecords.forEach((record) => {
               records.push({
                 type: "CAA",
@@ -127,7 +127,7 @@ export default function nodeDriver(options: NodeDriverOptions = {}): Driver {
             });
           } else if (type === "NAPTR") {
             // NAPTR returns array of NAPTR records
-            const naptrRecords = results as NaptrRecord[];
+            const naptrRecords = results as unknown as NaptrRecord[];
             naptrRecords.forEach((record) => {
               records.push({
                 type: "NAPTR",

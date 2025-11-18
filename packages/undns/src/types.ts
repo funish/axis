@@ -1,27 +1,13 @@
-import type {
-  AnyRecord,
-  CaaRecord,
-  MxRecord,
-  NaptrRecord,
-  SoaRecord,
-  SrvRecord,
-  TlsaRecord,
-} from "node:dns";
+import type { AnyRecord } from "node:dns";
 
 // Unified DNS record type using Node.js standard types
 export type DNSRecord = AnyRecord & { id?: string };
 
 // Helper types for raw DNS resolution results
 export type RawDNSResult =
-  | string[]
-  | CaaRecord[]
-  | MxRecord[]
-  | NaptrRecord[]
-  | SoaRecord
-  | SrvRecord[]
-  | TlsaRecord[]
-  | string[][]
-  | AnyRecord[];
+  | string[] // A, AAAA, CNAME, NS, PTR records
+  | string[][] // TXT records
+  | AnyRecord; // SOA and other complex records (includes CaaRecord, MxRecord, etc.)
 
 // DNS record input type (for create/update operations)
 export interface DNSRecordInput {
