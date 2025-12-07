@@ -1,6 +1,6 @@
 {
   "name": "undns",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "Unified DNS library with multi-driver support, DoH server, and comprehensive record management",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -68,6 +68,7 @@
   },
   "dependencies": {
     "h3": "2.0.1-rc.5",
-    "ipdo": "workspace:*"
+    "ipdo": "workspace:*",
+    "ofetch": "1.4.1"
   }
 }

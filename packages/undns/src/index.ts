@@ -11,3 +11,8 @@ export * from "./dns";
 
 // Export all utility functions
 export * from "./utils";
+
+// Export DNSCrypt resolvers data and types
+import resolversData from "./data/resolvers.json";
+
+export const resolvers = resolversData;

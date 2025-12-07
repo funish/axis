@@ -17,6 +17,7 @@
 - 🎯 **Entity-Based**: Domain and record-focused API for intuitive DNS management
 - 🛡️ **DNS over HTTPS Server**: RFC 8484 compliant DoH server implementation
 - 🔍 **Advanced Record Types**: Support for TLSA, NAPTR, and other specialized records
+- 📋 **DNSCrypt Resolvers**: Built-in access to DNSCrypt public resolvers database
 
 ## Installation
 
@@ -131,6 +132,21 @@ import { createApp } from "h3";
 const app = createApp();
 const dohHandler = createDohHandler();
 app.use("/dns-query", dohHandler);
+```
+
+### DNSCrypt Resolvers
+
+```typescript
+import { resolvers, type DnsResolver } from "undns";
+
+// Access all DNSCrypt public resolvers
+console.log(`Total resolvers: ${resolvers.length}`);
+
+// Find DoH resolvers
+const dohResolvers = resolvers.filter((r) => r.proto === "DoH");
+
+// Find privacy-focused resolvers (no log + no filter)
+const privacyResolvers = resolvers.filter((r) => r.nolog && r.nofilter);
 ```
 
 ### Error Handling

@@ -1,3 +1,4 @@
+import { ofetch } from "ofetch";
 import type {
   Driver,
   DNSRecord,
@@ -52,29 +53,13 @@ export default function dohDriver(options: DOHDriverOptions = {}): Driver {
     url.searchParams.set("name", hostname);
     url.searchParams.set("type", recordType);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-    try {
-      const response = await fetch(url.toString(), {
-        method: "GET",
-        headers: {
-          Accept: "application/dns-json",
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      return (await response.json()) as DOHResponse;
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
-    }
+    return await ofetch<DOHResponse>(url.toString(), {
+      method: "GET",
+      headers: {
+        Accept: "application/dns-json",
+      },
+      timeout,
+    });
   }
 
   // Convert DOH data to DNSRecord based on type

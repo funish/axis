@@ -54,6 +54,9 @@ importers:
       ipdo:
         specifier: workspace:*
         version: link:../ipdo
+      ofetch:
+        specifier: 1.4.1
+        version: 1.4.1
 
   playground:
     dependencies:
