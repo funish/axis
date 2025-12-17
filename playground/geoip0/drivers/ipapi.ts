@@ -1,17 +1,17 @@
 /**
- * Free IP API Driver Examples
- * Demonstrating GeoIP lookup functionality with Free IP API service
+ * IP-API.com Driver Examples
+ * Demonstrating GeoIP lookup functionality with IP-API.com service
  */
 
 import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
-import freeipapiDriver from "../../../packages/geoip0/src/drivers/freeipapi";
+import ipapiDriver from "../../../packages/geoip0/src/drivers/ipapi";
 import type { QueryOptions } from "../../../packages/geoip0/src/types";
 
-console.log("Free IP API Driver Examples\n");
+console.log("IP-API.com Driver Examples\n");
 
-// Initialize Free IP API driver with manager
-const freeipapi = freeipapiDriver();
-const geoip = createGeoIPManager({ driver: freeipapi });
+// Initialize IP-API.com driver with manager
+const ipapi = ipapiDriver();
+const geoip = createGeoIPManager({ driver: ipapi });
 
 // Test IPs
 const testIPv4 = "1.1.1.1"; // Cloudflare DNS
@@ -127,15 +127,21 @@ try {
   console.log("Batch lookup error:", (error as Error).message);
 }
 
-// Batch lookup with version preference
-console.log(`\n--- Batch Lookup with Auto Version ---`);
+// Batch lookup with version preference (IP-API.com auto-detects)
+console.log(`\n--- Batch Lookup with Field Customization ---`);
 try {
-  const options: QueryOptions = { version: "auto" };
-  const results = await geoip.batchLookup(testIPs, options);
+  // Test with custom driver options
+  const ipapiCustom = ipapiDriver({
+    fields: "status,message,country,city,lat,lon,query",
+    lang: "en",
+  });
+  const geoipCustom = createGeoIPManager({ driver: ipapiCustom });
+
+  const results = await geoipCustom.batchLookup(testIPs);
   if (!results) {
     console.log("No results returned from batch lookup");
   } else {
-    console.log(`Found results for ${results.length} IPs with auto version`);
+    console.log(`Found results for ${results.length} IPs with custom fields:`);
 
     results.forEach((result, index) => {
       console.log(
@@ -147,36 +153,29 @@ try {
   console.log("Batch lookup error:", (error as Error).message);
 }
 
-// Test performance comparison
-console.log(`\n--- Performance Comparison ---`);
+// Test batch limit handling
+console.log(`\n--- Batch Limit Test ---`);
 try {
-  // Sequential lookup
-  const sequentialStart = Date.now();
-  const sequentialResults = [];
-  for (const ip of testIPs) {
-    const result = await geoip.lookup(ip);
-    if (result) sequentialResults.push(result);
-  }
-  const sequentialTime = Date.now() - sequentialStart;
+  // Test with many IPs to demonstrate 100 IP limit
+  const manyIPs = Array.from({ length: 105 }, (_, i) => `8.8.8.${i + 1}`);
+  console.log(`Testing batch lookup with ${manyIPs.length} IPs (limit is 100)`);
 
-  // Batch lookup
-  const batchStart = Date.now();
-  const batchResults = await geoip.batchLookup(testIPs);
-  const batchTime = Date.now() - batchStart;
-
-  console.log(
-    `Sequential lookup: ${sequentialTime}ms for ${sequentialResults.length} results`,
-  );
-  console.log(
-    `Batch lookup: ${batchTime}ms for ${batchResults?.length || 0} results`,
-  );
-  if (batchResults && sequentialTime > 0) {
+  const results = await geoip.batchLookup(manyIPs);
+  if (!results) {
+    console.log("No results returned from batch lookup");
+  } else {
     console.log(
-      `Performance improvement: ${(((sequentialTime - batchTime) / sequentialTime) * 100).toFixed(1)}% faster`,
+      `Received results for ${results.length} IPs (note: limit is 100 per request)`,
     );
+    console.log(`First few results:`);
+    results.slice(0, 3).forEach((result, index) => {
+      console.log(
+        `  [${index + 1}] ${result.ip} -> ${result.country || "N/A"}`,
+      );
+    });
   }
 } catch (error) {
-  console.log("Performance test error:", (error as Error).message);
+  console.log("Batch limit test error:", (error as Error).message);
 }
 
-console.log("\nFree IP API driver examples completed!");
+console.log("\nIP-API.com driver examples completed!");
