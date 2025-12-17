@@ -53,6 +53,13 @@ const location = await geoip.lookup("1.1.1.1");
 // Get current IP geolocation
 const currentLocation = await geoip.current();
 
+// Batch lookup for multiple IPs
+const locations = await geoip.batchLookup([
+  "1.1.1.1",
+  "8.8.8.8",
+  "2606:4700:4700::1111",
+]);
+
 // Lookup with version preference
 const ipv4Location = await geoip.lookup("8.8.8.8", { version: "ipv4" });
 const ipv6Location = await geoip.lookup("2606:4700:4700::1111", {
@@ -77,6 +84,9 @@ import ipsbDriver from "geoip0/drivers/ipsb";
 
 // Cloudflare Radar driver (ASN and network info)
 import cloudflareDriver from "geoip0/drivers/cloudflare";
+
+// FreeIPAPI driver (free geolocation API with bulk support)
+import freeipapiDriver from "geoip0/drivers/freeipapi";
 ```
 
 ### HTTP Server
@@ -151,6 +161,18 @@ Get geolocation information for the current client IP.
 
 **Returns:** `Promise<GeoLocation | null>` - Current location data or null
 
+##### `batchLookup(ips, options?)`
+
+Get geolocation information for multiple IP addresses in a single request.
+
+**Parameters:**
+
+- `ips` (string[]) - Array of IP addresses to query
+- `options` (object, optional) - Query options
+  - `version` ('ipv4' | 'ipv6' | 'auto') - IP version preference
+
+**Returns:** `Promise<GeoLocation[]> - Array of geolocation data for valid IPs
+
 ### GeoIP Server
 
 #### `createGeoIPServer(options)`
@@ -191,6 +213,58 @@ export interface GeoLocation {
   timezone?: string; // Timezone
   source?: string; // Data source
 }
+```
+
+## HTTP Endpoints
+
+### GET /help
+
+Returns server information and available endpoints.
+
+### GET /current
+
+Returns geolocation data for the client's IP address.
+
+**Query Parameters:**
+
+- `version` (optional) - IP version preference: 'ipv4', 'ipv6', 'auto'
+
+### GET /{ip}
+
+Returns geolocation data for the specified IP address.
+
+**Query Parameters:**
+
+- `version` (optional) - IP version preference: 'ipv4', 'ipv6', 'auto'
+
+### POST /batch
+
+Returns geolocation data for multiple IP addresses.
+
+**Request Body:**
+
+```json
+{
+  "ips": ["1.1.1.1", "8.8.8.8", "2606:4700:4700::1111"]
+}
+```
+
+**Query Parameters:**
+
+- `version` (optional) - IP version preference: 'ipv4', 'ipv6', 'auto'
+
+**Response:**
+
+```json
+[
+  {
+    "ip": "1.1.1.1",
+    "country": "United States",
+    "countryCode": "US"
+    // ... other fields
+  }
+  // ... more results
+]
 ```
 
 ## License

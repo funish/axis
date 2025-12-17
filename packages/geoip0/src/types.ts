@@ -43,6 +43,12 @@ export interface Driver<OptionsT = DriverOptions> {
     options?: QueryOptions,
   ) => MaybePromise<GeoLocation | null>;
 
+  // Batch query multiple IPs
+  batchLookup?: (
+    ips: string[],
+    options?: QueryOptions,
+  ) => MaybePromise<GeoLocation[]>;
+
   // Get current IP location
   current?: (options?: QueryOptions) => MaybePromise<GeoLocation | null>;
 }

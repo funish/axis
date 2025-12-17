@@ -29,6 +29,11 @@ export interface FreeIPAPIResponse {
   isProxy: boolean; // Whether IP is a proxy
 }
 
+// Free IP API Bulk response interface
+export interface FreeIPAPIBulkResponse {
+  [ip: string]: FreeIPAPIResponse;
+}
+
 // Free IP API Driver options
 export interface FreeIPAPIOptions extends DriverOptions {}
 
@@ -99,10 +104,56 @@ export default function freeipapiDriver(
     }
   };
 
+  const batchLookup = async (
+    ips: string[],
+    _queryOptions?: QueryOptions,
+  ): Promise<GeoLocation[]> => {
+    try {
+      const response: FreeIPAPIBulkResponse = await ofetch(
+        "https://freeipapi.com/api/bulk/json",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: {
+            ips,
+          },
+        },
+      );
+
+      // Convert bulk API response to GeoLocation array
+      const results: GeoLocation[] = [];
+      for (const [, data] of Object.entries(response)) {
+        if (data && data.ipAddress) {
+          results.push({
+            ip: data.ipAddress,
+            country: data.countryName,
+            countryCode: data.countryCode,
+            region: data.regionName,
+            city: data.cityName,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            isp: data.asnOrganization,
+            org: data.asnOrganization,
+            asn: data.asn,
+            timezone: data.timeZones?.[0] || "", // Use first timezone
+            source: "freeipapi",
+          });
+        }
+      }
+
+      return results;
+    } catch {
+      return [];
+    }
+  };
+
   return {
     name: "freeipapi",
     options,
     lookup,
+    batchLookup,
     current,
   };
 }

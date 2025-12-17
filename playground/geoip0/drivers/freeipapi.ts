@@ -92,4 +92,93 @@ for (const version of versions) {
   }
 }
 
+console.log("\n=== Batch Lookup Examples ===");
+
+// Batch lookup with multiple IPs
+const testIPs = [
+  "1.1.1.1", // Cloudflare DNS
+  "8.8.8.8", // Google DNS
+  "208.67.222.222", // OpenDNS
+  "9.9.9.9", // Quad9 DNS
+];
+
+console.log(`\n--- Batch Lookup (${testIPs.length} IPs) ---`);
+try {
+  const results = await geoip.batchLookup(testIPs);
+  if (!results) {
+    console.log("No results returned from batch lookup");
+  } else {
+    console.log(`Found results for ${results.length} IPs:`);
+
+    results.forEach((result, index) => {
+      console.log(`\n[${index + 1}] ${result.ip}`);
+      console.log(`  Country: ${result.country} (${result.countryCode})`);
+      console.log(`  Region: ${result.region || "N/A"}`);
+      console.log(`  City: ${result.city || "N/A"}`);
+      console.log(`  Coordinates: ${result.latitude}, ${result.longitude}`);
+      console.log(`  ISP: ${result.isp || "N/A"}`);
+      console.log(`  Organization: ${result.org || "N/A"}`);
+      console.log(`  ASN: ${result.asn || "N/A"}`);
+      console.log(`  Timezone: ${result.timezone || "N/A"}`);
+      console.log(`  Source: ${result.source}`);
+    });
+  }
+} catch (error) {
+  console.log("Batch lookup error:", (error as Error).message);
+}
+
+// Batch lookup with version preference
+console.log(`\n--- Batch Lookup with Auto Version ---`);
+try {
+  const options: QueryOptions = { version: "auto" };
+  const results = await geoip.batchLookup(testIPs, options);
+  if (!results) {
+    console.log("No results returned from batch lookup");
+  } else {
+    console.log(`Found results for ${results.length} IPs with auto version`);
+
+    results.forEach((result, index) => {
+      console.log(
+        `[${index + 1}] ${result.ip} -> ${result.city || "N/A"}, ${result.country || "N/A"}`,
+      );
+    });
+  }
+} catch (error) {
+  console.log("Batch lookup error:", (error as Error).message);
+}
+
+// Test performance comparison
+console.log(`\n--- Performance Comparison ---`);
+try {
+  const startTime = Date.now();
+
+  // Sequential lookup
+  const sequentialStart = Date.now();
+  const sequentialResults = [];
+  for (const ip of testIPs) {
+    const result = await geoip.lookup(ip);
+    if (result) sequentialResults.push(result);
+  }
+  const sequentialTime = Date.now() - sequentialStart;
+
+  // Batch lookup
+  const batchStart = Date.now();
+  const batchResults = await geoip.batchLookup(testIPs);
+  const batchTime = Date.now() - batchStart;
+
+  console.log(
+    `Sequential lookup: ${sequentialTime}ms for ${sequentialResults.length} results`,
+  );
+  console.log(
+    `Batch lookup: ${batchTime}ms for ${batchResults?.length || 0} results`,
+  );
+  if (batchResults && sequentialTime > 0) {
+    console.log(
+      `Performance improvement: ${(((sequentialTime - batchTime) / sequentialTime) * 100).toFixed(1)}% faster`,
+    );
+  }
+} catch (error) {
+  console.log("Performance test error:", (error as Error).message);
+}
+
 console.log("\nFree IP API driver examples completed!");

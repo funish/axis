@@ -85,4 +85,54 @@ for (const version of versions) {
   }
 }
 
+console.log("\n=== Batch Lookup Examples ===");
+
+// Batch lookup with multiple IPs
+const testIPs = [
+  "1.1.1.1", // Cloudflare DNS
+  "8.8.8.8", // Google DNS
+  "208.67.222.222", // OpenDNS
+  "9.9.9.9", // Quad9 DNS
+];
+
+console.log(`\n--- Batch Lookup (${testIPs.length} IPs) ---`);
+try {
+  const results = await geoip.batchLookup(testIPs);
+  if (!results) {
+    console.log("No results returned from batch lookup");
+  } else {
+    console.log(`Found results for ${results.length} IPs:`);
+
+    results.forEach((result, index) => {
+      console.log(`\n[${index + 1}] ${result.ip}`);
+      console.log(`  Country: ${result.country} (${result.countryCode})`);
+      console.log(`  Region: ${result.region || "N/A"}`);
+      console.log(`  City: ${result.city || "N/A"}`);
+      console.log(`  Organization: ${result.org || "N/A"}`);
+      console.log(`  ASN: ${result.asn || "N/A"}`);
+      console.log(`  Source: ${result.source}`);
+    });
+  }
+} catch (error) {
+  console.log("Batch lookup error:", (error as Error).message);
+}
+
+// Batch lookup with version preference
+console.log(`\n--- Batch Lookup with IPv4 Preference ---`);
+try {
+  const options: QueryOptions = { version: "ipv4" };
+  const results = await geoip.batchLookup(testIPs, options);
+  if (!results) {
+    console.log("No results returned from batch lookup");
+  } else {
+    console.log(`Found results for ${results.length} IPs with IPv4 preference`);
+
+    results.forEach((result, index) => {
+      console.log(`[${index + 1}] ${result.ip} -> ${result.country || "N/A"}`);
+    });
+  }
+} catch (error) {
+  console.log("Batch lookup error:", (error as Error).message);
+}
+
 console.log("\nCloudflare driver examples completed!");

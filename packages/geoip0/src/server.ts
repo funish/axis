@@ -41,11 +41,13 @@ export type FetchHandler = (
 /**
  * This function creates a fetch handler for your custom GeoIP server.
  *
- * The GeoIP server will handle GET and HEAD requests:
+ * The GeoIP server will handle GET, POST and HEAD requests:
  * - HEAD: Return metadata about the service
  * - GET: Return geolocation data for IP addresses
+ * - POST: Return geolocation data for multiple IP addresses (batch)
  * - /current: Return geolocation data for the client's IP
  * - /{ip}: Return geolocation data for the specified IP address
+ * - /batch: Return geolocation data for multiple IP addresses
  * - /help: Return server help information
  *
  * @param options GeoIP server configuration options
@@ -117,12 +119,19 @@ export function createGeoIPHandler(
           "/help": "This help information",
           "/current": "Geolocation data for client IP",
           "/{ip}": "Geolocation data for specified IP address",
+          "/batch": "Batch geolocation data for multiple IP addresses (POST)",
         },
         examples: [
           "GET /current - Get client IP geolocation",
           "GET /8.8.8.8 - Get geolocation for 8.8.8.8",
           "GET /2001:4860:4860::8888 - Get geolocation for IPv6 address",
+          "POST /batch - Get geolocation for multiple IPs",
         ],
+        batch_endpoint: {
+          method: "POST",
+          content_type: "application/json",
+          body: { ips: ["8.8.8.8", "1.1.1.1"] },
+        },
         query_options: {
           version: "IP version preference: 'ipv4', 'ipv6', 'auto'",
         },
@@ -139,6 +148,37 @@ export function createGeoIPHandler(
       const version = url.searchParams.get("version");
       if (version === "ipv4" || version === "ipv6" || version === "auto") {
         queryOptions.version = version;
+      }
+    }
+
+    // Handle batch endpoint
+    if (path === "/batch") {
+      if (event.req.method !== "POST") {
+        throw new HTTPError({
+          statusCode: 405,
+          statusMessage: "Method not allowed. Use POST for batch requests",
+        });
+      }
+
+      try {
+        const body = (await event.req.json()) as { ips?: string[] };
+        if (!body.ips || !Array.isArray(body.ips)) {
+          throw new HTTPError({
+            statusCode: 400,
+            statusMessage: "Invalid request body: 'ips' array is required",
+          });
+        }
+
+        const results = await geoipManager.batchLookup(body.ips, queryOptions);
+        return JSON.stringify(results, null, 2);
+      } catch (error: any) {
+        if (error instanceof HTTPError) {
+          throw error;
+        }
+        throw new HTTPError({
+          statusCode: 400,
+          statusMessage: "Invalid JSON in request body",
+        });
       }
     }
 
@@ -200,6 +240,11 @@ function parseGeoIPPath(path: string): {
 
   // Handle /current endpoint
   if (cleanPath === "current") {
+    return { ip: "" };
+  }
+
+  // Handle /batch endpoint
+  if (cleanPath === "batch") {
     return { ip: "" };
   }
 

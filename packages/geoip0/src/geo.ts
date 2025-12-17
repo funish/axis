@@ -6,6 +6,7 @@ export function createGeoIPManager(options: GeoIPManagerOptions) {
   // Core GeoIP operations
   const geoip = {
     lookup: driver.lookup || (async () => null),
+    batchLookup: driver.batchLookup || (async () => null),
     current:
       driver.current ||
       (async () => {

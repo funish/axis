@@ -148,10 +148,26 @@ export default function cloudflareDriver(
     }
   };
 
+  const batchLookup = async (
+    ips: string[],
+    queryOptions?: QueryOptions,
+  ): Promise<GeoLocation[]> => {
+    const promises = ips.map((ip) => lookup(ip, queryOptions));
+    const results = await Promise.allSettled(promises);
+
+    return results
+      .filter(
+        (result): result is PromiseFulfilledResult<GeoLocation> =>
+          result.status === "fulfilled" && result.value !== null,
+      )
+      .map((result) => result.value);
+  };
+
   return {
     name: "cloudflare",
     options,
     lookup,
+    batchLookup,
     current,
   };
 }
