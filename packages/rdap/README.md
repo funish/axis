@@ -91,9 +91,7 @@ const data = await queryRDAP("example.com", {
 // All convenience functions also support options
 const domainWithCustomServer = await queryDomain("example.com", {
   baseUrl: "https://custom-rdap-server.com",
-  fetchOptions: {
-    headers: { "User-Agent": "MyApp/1.0" },
-  },
+  fetchOptions: {},
 });
 
 const nameserverWithType = await queryNameserver("ns1.example.com", {
@@ -184,8 +182,6 @@ const domainInfo = await queryRDAP("example.com", {
 const domainInfo = await queryRDAP("example.com", {
   fetchOptions: {
     headers: {
-      "User-Agent": "MyApp/1.0",
-      "Accept-Language": "en-US",
       Authorization: "Bearer your-token",
     },
   },
@@ -430,7 +426,6 @@ This implementation strictly follows these RDAP-related standards:
 - **Error Handling**: Implements comprehensive HTTP status code handling
 - **Help Support**: Provides `queryHelp()` for server capability discovery
 - **Bootstrap Service**: Uses IANA official bootstrap data for server discovery
-- **Language Support**: Includes `Accept-Language` header for internationalization
 
 ## 📄 License
 

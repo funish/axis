@@ -182,8 +182,6 @@ export async function queryRDAP<T = RdapResponse>(
     const response = await ofetch<T>(url, {
       headers: {
         Accept: "application/rdap+json",
-        "User-Agent": "axis-rdap-client/0.0.4",
-        "Accept-Language": "en",
       },
       ...options?.fetchOptions,
     });
