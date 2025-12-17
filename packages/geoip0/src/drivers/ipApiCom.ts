@@ -7,7 +7,7 @@ import type {
 } from "../types";
 
 // IP-API.com response interface
-export interface IPAPIResponse {
+export interface IpApiComResponse {
   query: string; // IP address
   status: "success" | "fail";
   country?: string; // Country name
@@ -29,10 +29,10 @@ export interface IPAPIResponse {
 }
 
 // IP-API.com Batch response interface
-export type IPAPIBatchResponse = IPAPIResponse[];
+export type IpApiComBatchResponse = IpApiComResponse[];
 
 // IP-API.com Driver options
-export interface IPAPIOptions extends DriverOptions {
+export interface IpApiComOptions extends DriverOptions {
   /**
    * Specify response fields to reduce bandwidth
    */
@@ -47,9 +47,9 @@ export interface IPAPIOptions extends DriverOptions {
 const DEFAULT_FIELDS =
   "status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,mobile,proxy,hosting,query";
 
-export default function ipapiDriver(
-  options: IPAPIOptions = {},
-): Driver<IPAPIOptions> {
+export default function ipApiComDriver(
+  options: IpApiComOptions = {},
+): Driver<IpApiComOptions> {
   const lookup = async (
     ip: string,
     _queryOptions?: QueryOptions,
@@ -60,7 +60,7 @@ export default function ipapiDriver(
 
       const url = `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=${encodeURIComponent(fields)}&lang=${encodeURIComponent(lang)}`;
 
-      const data: IPAPIResponse = await ofetch(url);
+      const data: IpApiComResponse = await ofetch(url);
 
       if (data.status !== "success" || !data.query) {
         return null;
@@ -98,7 +98,7 @@ export default function ipapiDriver(
       const lang = options.lang || "en";
       url += `?fields=${encodeURIComponent(fields)}&lang=${encodeURIComponent(lang)}`;
 
-      const data: IPAPIResponse = await ofetch(url);
+      const data: IpApiComResponse = await ofetch(url);
 
       if (data.status !== "success" || !data.query) {
         return null;
@@ -143,7 +143,7 @@ export default function ipapiDriver(
         url += `&fields=${encodeURIComponent(options.fields)}`;
       }
 
-      const response: IPAPIBatchResponse = await ofetch(url, {
+      const response: IpApiComBatchResponse = await ofetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -89,7 +89,10 @@ import cloudflareDriver from "geoip0/drivers/cloudflare";
 import freeipapiDriver from "geoip0/drivers/freeipapi";
 
 // IP-API.com driver (high-performance API with 100 IP batch limit)
-import ipapiDriver from "geoip0/drivers/ipapi";
+import ipApiComDriver from "geoip0/drivers/ipApiCom";
+
+// ipapi.co driver (rich geolocation data with field customization)
+import ipapiCoDriver from "geoip0/drivers/ipapiCo";
 ```
 
 ### HTTP Server
