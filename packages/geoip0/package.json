@@ -1,7 +1,7 @@
 {
   "name": "geoip0",
-  "version": "0.0.1",
-  "description": "",
+  "version": "0.0.2",
+  "description": "Unified geolocation information query library with multi-provider support",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "files": [
@@ -32,7 +32,20 @@
     "type": "git",
     "url": "git+https://github.com/funish/axis.git"
   },
-  "keywords": [],
+  "keywords": [
+    "geolocation",
+    "ip",
+    "geoip",
+    "location",
+    "ip-address",
+    "geolocation-api",
+    "ipv4",
+    "ipv6",
+    "ip-location",
+    "asn",
+    "isp",
+    "typescript"
+  ],
   "author": {
     "name": "Funish",
     "email": "contact@funish.net",

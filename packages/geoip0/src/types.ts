@@ -26,7 +26,6 @@ export interface DriverOptions {
 
 // Query options
 export interface QueryOptions {
-  language?: string;
   version?: "ipv4" | "ipv6" | "auto";
 }
 

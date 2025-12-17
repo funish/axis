@@ -31,7 +31,6 @@ console.log("\n=== Query Parameters ===");
 console.log("?version=auto - Auto-detect IP version (default)");
 console.log("?version=ipv4 - Force IPv4 detection");
 console.log("?version=ipv6 - Force IPv6 detection");
-console.log("?language=zh-CN - Set preferred language");
 
 console.log("\n=== Example Requests ===");
 
@@ -56,10 +55,6 @@ const exampleRequests = [
   {
     description: "Lookup Cloudflare DNS IPv6",
     url: "/2606:4700:4700::1111",
-  },
-  {
-    description: "Lookup with language preference",
-    url: "/8.8.8.8?language=zh-CN",
   },
   {
     description: "Help endpoint",

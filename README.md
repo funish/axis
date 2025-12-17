@@ -3,7 +3,7 @@
 ![GitHub](https://img.shields.io/github/license/funish/axis)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](https://www.contributor-covenant.org/version/2/1/code_of_conduct/)
 
-> Unified network toolkit for IP address manipulation, RDAP operations, and DNS management
+> Unified network toolkit for IP address manipulation, RDAP operations, DNS management, and geolocation queries
 
 ## Packages
 
@@ -12,6 +12,7 @@ This is a monorepo that contains the following packages:
 - **[ipdo](./packages/ipdo/README.md)** - Powerful IP address manipulation library
 - **[rdap](./packages/rdap/README.md)** - Modern RDAP (Registration Data Access Protocol) client
 - **[undns](./packages/undns/README.md)** - Core DNS management library with unified API
+- **[geoip0](./packages/geoip0/README.md)** - Unified geolocation information query library with multi-provider support
 
 ## Quick Start
 
@@ -59,6 +60,24 @@ const asnInfo = await queryASN("15169");
 console.log("Domain:", domainInfo.handle);
 console.log("IP Network:", ipInfo.handle);
 console.log("ASN:", asnInfo.handle);
+
+// Geolocation queries with geoip0
+import { createGeoIPManager } from "geoip0";
+import ipsbDriver from "geoip0/drivers/ipsb";
+
+const geoip = createGeoIPManager({
+  driver: ipsbDriver(),
+});
+
+const location = await geoip.lookup("1.1.1.1");
+const currentLocation = await geoip.current();
+
+console.log("Location for 1.1.1.1:", location?.country, location?.city);
+console.log(
+  "Current IP location:",
+  currentLocation?.country,
+  currentLocation?.city,
+);
 ```
 
 ### Development
@@ -75,6 +94,8 @@ pnpm lint
 
 # Test the implementation
 bun playground/drivers/node.ts
+bun playground/geoip0/drivers/ipsb.ts
+bun playground/geoip0/server.ts
 ```
 
 ## Contributing

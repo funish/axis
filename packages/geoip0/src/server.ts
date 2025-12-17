@@ -125,7 +125,6 @@ export function createGeoIPHandler(
         ],
         query_options: {
           version: "IP version preference: 'ipv4', 'ipv6', 'auto'",
-          language: "Preferred language for response data",
         },
       };
 
@@ -141,10 +140,6 @@ export function createGeoIPHandler(
       if (version === "ipv4" || version === "ipv6" || version === "auto") {
         queryOptions.version = version;
       }
-    }
-
-    if (url.searchParams.has("language")) {
-      queryOptions.language = url.searchParams.get("language") || undefined;
     }
 
     // Use GeoIP driver to get location data
