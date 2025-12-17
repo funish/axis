@@ -1,0 +1,51 @@
+{
+  "name": "geoip0",
+  "version": "0.0.1",
+  "description": "",
+  "main": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./drivers/*": {
+      "import": "./dist/drivers/*.mjs",
+      "require": "./dist/drivers/*.cjs",
+      "types": "./dist/drivers/*.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server.mjs",
+      "require": "./dist/server.cjs",
+      "types": "./dist/server.d.ts"
+    }
+  },
+  "scripts": {
+    "dev": "unbuild --stub",
+    "build": "unbuild",
+    "prepack": "pnpm build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/funish/axis.git"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Funish",
+    "email": "contact@funish.net",
+    "url": "http://www.funish.net/"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/funish/axis/issues"
+  },
+  "homepage": "https://github.com/funish/axis#readme",
+  "dependencies": {
+    "h3": "2.0.1-rc.5",
+    "ipdo": "workspace:*",
+    "ofetch": "1.4.1"
+  }
+}
