@@ -93,6 +93,9 @@ import ipApiComDriver from "geoip0/drivers/ipApiCom";
 
 // ipapi.co driver (rich geolocation data with field customization)
 import ipapiCoDriver from "geoip0/drivers/ipapiCo";
+
+// ip2location.io driver (comprehensive geolocation with API key)
+import ip2LocationDriver from "geoip0/drivers/ip2Location";
 ```
 
 ### HTTP Server
