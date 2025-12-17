@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "geoip0": "workspace:*",
     "ipdo": "workspace:*",
     "rdap": "workspace:*",
     "undns": "workspace:*"

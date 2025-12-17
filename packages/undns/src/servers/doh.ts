@@ -43,8 +43,6 @@ function getDnsTypeString(typeNumber: number): string {
   return DNS_TYPE_STRINGS[typeNumber] || "A";
 }
 
-const SupportedMethods = ["GET", "HEAD", "POST"];
-
 export interface DohServerRequest {
   /**
    * DNS query name (domain)
@@ -99,14 +97,6 @@ export function createDohHandler(
       throw new HTTPError({
         statusCode: 404,
         statusMessage: `Not Found: DoH endpoint is /dns-query, got ${pathname}`,
-      });
-    }
-
-    // Validate method
-    if (!SupportedMethods.includes(event.req.method)) {
-      throw new HTTPError({
-        statusCode: 405,
-        statusMessage: `Method Not Allowed: ${event.req.method}`,
       });
     }
 
@@ -234,11 +224,6 @@ export function createDohHandler(
       event.res.headers.set("Content-Type", "application/dns-json");
     }
     event.res.headers.set("Access-Control-Allow-Origin", "*");
-
-    // Handle HEAD
-    if (event.req.method === "HEAD") {
-      return "";
-    }
 
     // Perform DNS query
     const records = await dnsManager.getRecords(name, { type });

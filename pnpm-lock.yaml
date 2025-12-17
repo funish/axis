@@ -29,6 +29,18 @@ importers:
         specifier: 3.6.1
         version: 3.6.1(typescript@5.8.3)
 
+  packages/geoip0:
+    dependencies:
+      h3:
+        specifier: 2.0.1-rc.5
+        version: 2.0.1-rc.5
+      ipdo:
+        specifier: workspace:*
+        version: link:../ipdo
+      ofetch:
+        specifier: 1.4.1
+        version: 1.4.1
+
   packages/ipdo: {}
 
   packages/rdap:
@@ -60,6 +72,9 @@ importers:
 
   playground:
     dependencies:
+      geoip0:
+        specifier: workspace:*
+        version: link:../packages/geoip0
       ipdo:
         specifier: workspace:*
         version: link:../packages/ipdo

@@ -23,8 +23,6 @@ export type RdapServerRequest = {
   path: string;
 };
 
-const SupportedMethods = ["GET", "HEAD"];
-
 export interface RdapServerOptions {
   /**
    * Authorization function for requests
@@ -110,14 +108,6 @@ export function createRdapHandler(
       path,
     };
 
-    // Validate method
-    if (!SupportedMethods.includes(event.req.method)) {
-      throw new HTTPError({
-        statusCode: 405,
-        statusMessage: `Method Not Allowed: ${event.req.method}`,
-      });
-    }
-
     // Authorize request
     try {
       await opts.authorize?.(request);
@@ -136,132 +126,125 @@ export function createRdapHandler(
     event.res.headers.set("Content-Type", "application/rdap+json");
     event.res.headers.set("Access-Control-Allow-Origin", "*");
 
-    // Handle different methods
+    // Handle request
     if (event.req.method === "HEAD") {
       return "";
     }
 
-    if (event.req.method === "GET") {
-      // Use custom data provider if available
-      if (opts.dataProvider) {
-        const data = await opts.dataProvider(query, queryType);
-        if (!data) {
-          throw new HTTPError({
-            statusCode: 404,
-            statusMessage: "RDAP resource not found",
-          });
-        }
-
-        // Format the custom data response with indentation
-        return JSON.stringify(data, null, 2);
+    // Use custom data provider if available
+    if (opts.dataProvider) {
+      const data = await opts.dataProvider(query, queryType);
+      if (!data) {
+        throw new HTTPError({
+          statusCode: 404,
+          statusMessage: "RDAP resource not found",
+        });
       }
 
-      // Handle help request with custom response
-      if (queryType === "help") {
-        // Get server URL from request
-        const serverUrl = new URL(event.req.url || "");
-        const baseUrl = `${serverUrl.protocol}//${serverUrl.host}`;
-
-        const help: RdapHelp = {
-          objectClassName: "help",
-          rdapConformance: [
-            "nro_rdap_profile_0",
-            "rdap_level_0",
-            "cidr0",
-            "nro_rdap_profile_asn_flat_0",
-            "arin_originas0",
-            "rirSearch1",
-            "ips",
-            "ipSearchResults",
-            "autnums",
-            "autnumSearchResults",
-            "reverse_search",
-          ],
-          notices: [
-            {
-              title: "Terms of Service",
-              description: [
-                "By using this RDAP service, you are agreeing to the service terms",
-              ],
-              links: [
-                {
-                  value: `${baseUrl}/help`,
-                  rel: "terms-of-service",
-                  type: "text/html",
-                  href: `${baseUrl}/terms`,
-                },
-              ],
-            },
-            {
-              title: "Copyright Notice",
-              description: ["Copyright RDAP Server Implementation"],
-            },
-          ],
-          reverse_search_properties: [
-            {
-              searchableResourceType: "ips",
-              relatedResourceType: "entity",
-              property: "fn",
-            },
-            {
-              searchableResourceType: "ips",
-              relatedResourceType: "entity",
-              property: "handle",
-            },
-            {
-              searchableResourceType: "ips",
-              relatedResourceType: "entity",
-              property: "email",
-            },
-            {
-              searchableResourceType: "ips",
-              relatedResourceType: "entity",
-              property: "role",
-            },
-            {
-              searchableResourceType: "autnums",
-              relatedResourceType: "entity",
-              property: "fn",
-            },
-            {
-              searchableResourceType: "autnums",
-              relatedResourceType: "entity",
-              property: "handle",
-            },
-            {
-              searchableResourceType: "autnums",
-              relatedResourceType: "entity",
-              property: "email",
-            },
-            {
-              searchableResourceType: "autnums",
-              relatedResourceType: "entity",
-              property: "role",
-            },
-          ],
-        };
-
-        // Format the help response with indentation
-        return JSON.stringify(help, null, 2);
-      }
-
-      // Use existing RDAP client functions for other query types
-      const rdapOptions: RdapOptions = {
-        baseUrl: opts.baseUrl,
-        fetchOptions: opts.fetchOptions,
-        type: queryType,
-      };
-
-      const data = await queryRDAP(query, rdapOptions);
-
-      // Format the JSON response with indentation
+      // Format the custom data response with indentation
       return JSON.stringify(data, null, 2);
     }
 
-    throw new HTTPError({
-      statusCode: 405,
-      statusMessage: `Method Not Allowed: ${event.req.method}`,
-    });
+    // Handle help request with custom response
+    if (queryType === "help") {
+      // Get server URL from request
+      const serverUrl = new URL(event.req.url || "");
+      const baseUrl = `${serverUrl.protocol}//${serverUrl.host}`;
+
+      const help: RdapHelp = {
+        objectClassName: "help",
+        rdapConformance: [
+          "nro_rdap_profile_0",
+          "rdap_level_0",
+          "cidr0",
+          "nro_rdap_profile_asn_flat_0",
+          "arin_originas0",
+          "rirSearch1",
+          "ips",
+          "ipSearchResults",
+          "autnums",
+          "autnumSearchResults",
+          "reverse_search",
+        ],
+        notices: [
+          {
+            title: "Terms of Service",
+            description: [
+              "By using this RDAP service, you are agreeing to the service terms",
+            ],
+            links: [
+              {
+                value: `${baseUrl}/help`,
+                rel: "terms-of-service",
+                type: "text/html",
+                href: `${baseUrl}/terms`,
+              },
+            ],
+          },
+          {
+            title: "Copyright Notice",
+            description: ["Copyright RDAP Server Implementation"],
+          },
+        ],
+        reverse_search_properties: [
+          {
+            searchableResourceType: "ips",
+            relatedResourceType: "entity",
+            property: "fn",
+          },
+          {
+            searchableResourceType: "ips",
+            relatedResourceType: "entity",
+            property: "handle",
+          },
+          {
+            searchableResourceType: "ips",
+            relatedResourceType: "entity",
+            property: "email",
+          },
+          {
+            searchableResourceType: "ips",
+            relatedResourceType: "entity",
+            property: "role",
+          },
+          {
+            searchableResourceType: "autnums",
+            relatedResourceType: "entity",
+            property: "fn",
+          },
+          {
+            searchableResourceType: "autnums",
+            relatedResourceType: "entity",
+            property: "handle",
+          },
+          {
+            searchableResourceType: "autnums",
+            relatedResourceType: "entity",
+            property: "email",
+          },
+          {
+            searchableResourceType: "autnums",
+            relatedResourceType: "entity",
+            property: "role",
+          },
+        ],
+      };
+
+      // Format the help response with indentation
+      return JSON.stringify(help, null, 2);
+    }
+
+    // Use existing RDAP client functions for other query types
+    const rdapOptions: RdapOptions = {
+      baseUrl: opts.baseUrl,
+      fetchOptions: opts.fetchOptions,
+      type: queryType,
+    };
+
+    const data = await queryRDAP(query, rdapOptions);
+
+    // Format the JSON response with indentation
+    return JSON.stringify(data, null, 2);
   });
 
   return handler;

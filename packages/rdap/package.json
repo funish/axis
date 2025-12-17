@@ -1,6 +1,6 @@
 {
   "name": "rdap",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "Modern RDAP client and server with RFC compliance, bootstrap service, and h3 integration",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",
