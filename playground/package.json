@@ -2,6 +2,7 @@
   "dependencies": {
     "geoip0": "workspace:*",
     "ipdo": "workspace:*",
+    "mmdb-lib": "3.0.1",
     "rdap": "workspace:*",
     "undns": "workspace:*"
   }

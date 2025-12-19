@@ -1,10 +1,5 @@
 import { ofetch } from "ofetch";
-import type {
-  Driver,
-  GeoLocation,
-  QueryOptions,
-  DriverOptions,
-} from "../types";
+import type { Driver, GeoLocation, QueryOptions, DriverOptions } from "..";
 
 // IP-API.com response interface
 export interface IpApiComResponse {

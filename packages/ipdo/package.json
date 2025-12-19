@@ -1,6 +1,6 @@
 {
   "name": "ipdo",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "High-performance IP address manipulation library with CIDR, IPv4/IPv6, and network operations",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",

@@ -443,6 +443,95 @@ export function rangeSize(cidr: string): number | bigint {
 }
 
 /**
+ * Parse IPv4 address to byte array directly
+ * More efficient than going through ArrayBuffer
+ */
+export function ipv4ToBytes(ip: string): number[] {
+  if (!isIPv4(ip)) {
+    throw new Error("Invalid IPv4 address");
+  }
+
+  const parts = ip.split(".");
+  return parts.map((part) => Number.parseInt(part, 10));
+}
+
+/**
+ * Parse IPv6 address to byte array directly
+ * More efficient than going through ArrayBuffer
+ */
+export function ipv6ToBytes(ip: string): number[] {
+  if (!isIPv6(ip)) {
+    throw new Error("Invalid IPv6 address");
+  }
+
+  // Handle compressed IPv6 addresses with ::
+  if (ip.includes("::")) {
+    const parts = ip.split(":");
+    const compressedIndex = parts.indexOf("");
+
+    // Count how many empty parts after compression
+    let emptyCount = 0;
+    for (let i = compressedIndex; i < parts.length; i++) {
+      if (parts[i] === "") emptyCount++;
+    }
+
+    // Calculate how many zeros to insert
+    const missingZeros = 8 - (parts.length - emptyCount) + 1;
+
+    const expandedParts: string[] = [];
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i] === "") {
+        if (i === 0 || i === parts.length - 1) {
+          continue; // Skip empty at start/end (leading/trailing ::)
+        }
+        // Insert missing zeros
+        for (let j = 0; j < missingZeros; j++) {
+          expandedParts.push("0");
+        }
+      } else {
+        expandedParts.push(parts[i]);
+      }
+    }
+
+    ip = expandedParts.join(":");
+  }
+
+  const parts = ip.split(":");
+  const bytes: number[] = [];
+
+  for (const part of parts) {
+    const value = Number.parseInt(part || "0", 16);
+    bytes.push((value >> 8) & 0xff);
+    bytes.push(value & 0xff);
+  }
+
+  return bytes;
+}
+
+/**
+ * Parse IP address to byte array (unified function)
+ * Chooses the most efficient method based on IP version
+ */
+export function ipToBytes(ip: string): number[] {
+  if (isIPv4(ip)) {
+    return ipv4ToBytes(ip);
+  }
+  if (isIPv6(ip)) {
+    return ipv6ToBytes(ip);
+  }
+  throw new Error("Invalid IP address");
+}
+
+/**
+ * Get IP version (4 for IPv4, 6 for IPv6)
+ */
+export function getIPVersion(ip: string): 4 | 6 | null {
+  if (isIPv4(ip)) return 4;
+  if (isIPv6(ip)) return 6;
+  return null;
+}
+
+/**
  * Check if two CIDR ranges overlap
  */
 export function rangesOverlap(cidr1: string, cidr2: string): boolean {

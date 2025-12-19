@@ -1,6 +1,6 @@
 {
   "name": "geoip0",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Unified geolocation information query library with multi-provider support",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -21,6 +21,11 @@
       "import": "./dist/server.mjs",
       "require": "./dist/server.cjs",
       "types": "./dist/server.d.ts"
+    },
+    "./mmdb": {
+      "import": "./dist/mmdb.mjs",
+      "require": "./dist/mmdb.cjs",
+      "types": "./dist/mmdb.d.ts"
     }
   },
   "scripts": {
@@ -59,6 +64,7 @@
   "dependencies": {
     "h3": "2.0.1-rc.5",
     "ipdo": "workspace:*",
-    "ofetch": "1.4.1"
+    "ofetch": "1.4.1",
+    "undio": "0.2.0"
   }
 }

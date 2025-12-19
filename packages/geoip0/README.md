@@ -9,13 +9,16 @@
 
 ## Features
 
-- 🌍 **Multi-Provider Support**: Unified API for IP.SB, Cloudflare Radar, and more
+- 🌍 **Multi-Provider Support**: Unified API for IP.SB, Cloudflare Radar, MaxMind, and more
 - 🔄 **Driver Pattern**: Consistent interface across different geolocation providers
 - 📝 **TypeScript First**: Full type safety with comprehensive location data types
 - 🚀 **High Performance**: Built on modern HTTP clients with minimal dependencies
 - 🎯 **IP-Version Aware**: Support for IPv4, IPv6, and auto-detection
 - 🛡️ **RESTful Server**: Built-in HTTP server for geolocation API services
 - 🔍 **Fallback Support**: Automatic fallback between providers for reliability
+- 🗄️ **MMDB Support**: Native MaxMind database support with high-performance local lookups
+- 🌐 **Web Service Integration**: MaxMind GeoIP Web Services with comprehensive data
+- 🔧 **Dual Mode**: Seamless switching between MMDB database and web service modes
 
 ## Installation
 
@@ -96,6 +99,12 @@ import ipapiCoDriver from "geoip0/drivers/ipapiCo";
 
 // ip2location.io driver (comprehensive geolocation with API key)
 import ip2LocationDriver from "geoip0/drivers/ip2Location";
+
+// MaxMind driver (MMDB database and Web Service with fallback support)
+import maxmindDriver, {
+  MaxMindMMDBOptions,
+  MaxMindWebOptions,
+} from "geoip0/drivers/maxmind";
 ```
 
 ### HTTP Server
@@ -114,6 +123,30 @@ import { createApp } from "h3";
 const app = createApp();
 const geoipHandler = createGeoIPHandler({ driver: ipsbDriver() });
 app.use("/**", geoipHandler);
+```
+
+### MMDB Module
+
+For direct MMDB database operations, use the dedicated MMDB module:
+
+```typescript
+import { createMMDBParser } from "geoip0/mmdb";
+import { readFile } from "fs/promises";
+
+// Load MMDB database
+const mmdbData = await readFile("./GeoLite2-City.mmdb");
+
+// Create parser
+const parser = createMMDBParser(mmdbData);
+
+// Query IP geolocation
+const result = parser.get("8.8.8.8");
+console.log(result); // Raw MMDB data structure
+
+// Advanced usage with metadata
+import { MMDBMetadataParser } from "geoip0/mmdb";
+const metadata = MMDBMetadataParser.parse(mmdbData);
+console.log(metadata.databaseType, metadata.buildEpoch);
 ```
 
 ### Error Handling

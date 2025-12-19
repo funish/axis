@@ -5,6 +5,7 @@ export default defineBuildConfig({
   entries: [
     "src/index",
     "src/server",
+    "src/mmdb",
     {
       input: "src/drivers/",
       outDir: "dist/drivers",

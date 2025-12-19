@@ -1,10 +1,5 @@
 import { ofetch } from "ofetch";
-import type {
-  Driver,
-  GeoLocation,
-  QueryOptions,
-  DriverOptions,
-} from "../types";
+import type { Driver, GeoLocation, QueryOptions, DriverOptions } from "..";
 
 // ip2location.io response interface
 export interface Ip2LocationResponse {
