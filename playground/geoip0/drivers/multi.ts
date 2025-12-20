@@ -110,7 +110,7 @@ async function runConfigurationExamples() {
 
   // Example 1: High reliability configuration
   console.log("\n--- High Reliability Configuration ---");
-  const highReliabilityDriver = multiDriver({
+  const _highReliabilityDriver = multiDriver({
     drivers: [
       ipsbDriver(), // Primary - comprehensive data
       freeipapiDriver(), // Secondary - good fallback
@@ -130,7 +130,7 @@ async function runConfigurationExamples() {
 
   // Example 3: Minimal configuration
   console.log("\n--- Minimal Configuration ---");
-  const minimalDriver = multiDriver({
+  const _minimalDriver = multiDriver({
     drivers: [
       freeipapiDriver(), // Just one fallback
       cloudflareDriver(), // And another
@@ -180,7 +180,7 @@ async function runErrorHandlingExamples() {
     } else {
       console.log("All drivers returned null - this is expected for localhost");
     }
-  } catch (error) {
+  } catch {
     console.log("No errors thrown - all failures handled gracefully");
   }
 }
