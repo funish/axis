@@ -52,17 +52,20 @@ export default function ip2LocationDriver(
 
       return {
         ip: data.ip,
-        country: data.country_name,
-        countryCode: data.country_code,
-        region: data.region_name,
-        city: data.city_name,
+        country: data.country_name || "",
+        countryCode: data.country_code || "",
+        region: data.region_name || "",
+        city: data.city_name || "",
         latitude: data.latitude || 0,
         longitude: data.longitude || 0,
-        org: data.as,
-        asn: data.asn,
-        timezone: data.time_zone,
-        isProxy: data.is_proxy,
+        isp: data.as || "",
+        org: data.as || "",
+        asn: data.asn || "",
+        timezone: data.time_zone || "",
+        isProxy: data.is_proxy || false,
         source: "ip2location.io",
+        regionCode: "",
+        accuracyRadius: "",
       };
     } catch {
       return null;
@@ -90,17 +93,20 @@ export default function ip2LocationDriver(
 
       return {
         ip: data.ip,
-        country: data.country_name,
-        countryCode: data.country_code,
-        region: data.region_name,
-        city: data.city_name,
+        country: data.country_name || "",
+        countryCode: data.country_code || "",
+        region: data.region_name || "",
+        city: data.city_name || "",
         latitude: data.latitude || 0,
         longitude: data.longitude || 0,
-        org: data.as,
-        asn: data.asn,
-        timezone: data.time_zone,
-        isProxy: data.is_proxy,
+        isp: data.as || "",
+        org: data.as || "",
+        asn: data.asn || "",
+        timezone: data.time_zone || "",
+        isProxy: data.is_proxy || false,
         source: "ip2location.io",
+        regionCode: "",
+        accuracyRadius: "",
       };
     } catch {
       return null;

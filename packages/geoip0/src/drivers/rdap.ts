@@ -33,7 +33,20 @@ export default function rdapDriver(
   ): GeoLocation => {
     const location: GeoLocation = {
       ip: ip ?? rdapResponse.startAddress,
+      country: "",
+      countryCode: "",
+      region: "",
+      regionCode: "",
+      city: "",
+      latitude: 0,
+      longitude: 0,
+      isp: "",
+      org: "",
+      asn: "",
+      timezone: "",
       source: "rdap",
+      accuracyRadius: "",
+      isProxy: false,
     };
 
     // Extract country information
@@ -162,29 +175,79 @@ export default function rdapDriver(
   const lookup = async (
     ip: string,
     _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  ): Promise<GeoLocation> => {
     try {
       const rdapResponse = await queryIP<RdapIpNetwork>(ip, {
         baseUrl,
         fetchOptions,
       });
 
-      return extractGeoLocation(rdapResponse, ip);
-    } catch (error) {
-      // RDAP returns 404 for IPs not in registry, treat as null
-      if (error instanceof Error && error.message.includes("not found")) {
-        return null;
+      const result = extractGeoLocation(rdapResponse, ip);
+      if (result) {
+        return result;
       }
-      throw error;
+
+      // Return empty object if no data found
+      return {
+        ip,
+        country: "",
+        countryCode: "",
+        region: "",
+        regionCode: "",
+        city: "",
+        latitude: 0,
+        longitude: 0,
+        isp: "",
+        org: "",
+        asn: "",
+        timezone: "",
+        source: "rdap",
+        accuracyRadius: "",
+        isProxy: false,
+      };
+    } catch (error) {
+      // Return empty object on error
+      return {
+        ip,
+        country: "",
+        countryCode: "",
+        region: "",
+        regionCode: "",
+        city: "",
+        latitude: 0,
+        longitude: 0,
+        isp: "",
+        org: "",
+        asn: "",
+        timezone: "",
+        source: "rdap",
+        accuracyRadius: "",
+        isProxy: false,
+      };
     }
   };
 
   const current = async (
     _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
-    throw new Error(
-      "RDAP driver does not support current IP detection. Please provide a specific IP address to lookup.",
-    );
+  ): Promise<GeoLocation> => {
+    // RDAP doesn't support current IP detection, return empty object
+    return {
+      ip: "",
+      country: "",
+      countryCode: "",
+      region: "",
+      regionCode: "",
+      city: "",
+      latitude: 0,
+      longitude: 0,
+      isp: "",
+      org: "",
+      asn: "",
+      timezone: "",
+      source: "rdap",
+      accuracyRadius: "",
+      isProxy: false,
+    };
   };
 
   const batchLookup = async (

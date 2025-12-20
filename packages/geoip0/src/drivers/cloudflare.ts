@@ -103,15 +103,20 @@ export default function cloudflareDriver(
 
       return {
         ip,
-        countryCode,
-        country: countryName,
-        region: "", // Neither API provides detailed region
-        city: "", // Neither API provides detailed city
+        countryCode: countryCode || "",
+        country: countryName || "",
+        region: "",
+        city: "",
         latitude: 0,
         longitude: 0,
-        asn: asnResponse.asn?.asn?.toString() || "",
+        isp: asnResponse.asn?.name || "",
         org: asnResponse.asn?.name || "",
+        asn: asnResponse.asn?.asn?.toString() || "",
+        timezone: "",
         source: "cloudflare",
+        regionCode: "",
+        accuracyRadius: "",
+        isProxy: false,
       };
     } catch {
       return null;
@@ -135,13 +140,20 @@ export default function cloudflareDriver(
 
       return {
         ip: data.ip_address,
-        countryCode: data.country,
-        region: data.region,
-        city: data.city,
-        latitude: parseFloat(data.latitude),
-        longitude: parseFloat(data.longitude),
+        countryCode: data.country || "",
+        country: "",
+        region: data.region || "",
+        city: data.city || "",
+        latitude: parseFloat(data.latitude) || 0,
+        longitude: parseFloat(data.longitude) || 0,
+        isp: "",
+        org: "",
         asn: data.asn.toString(),
+        timezone: "",
         source: "cloudflare",
+        regionCode: "",
+        accuracyRadius: "",
+        isProxy: false,
       };
     } catch {
       return null;

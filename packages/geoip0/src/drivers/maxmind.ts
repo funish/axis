@@ -203,18 +203,23 @@ export default function maxmindDriver(
 
     return {
       ip,
-      country: getCountryName(data.country),
+      country: getCountryName(data.country) || "",
       countryCode: data.country?.iso_code || "",
-      region: getRegion(data.subdivisions),
-      regionCode: data.subdivisions?.[0]?.iso_code
-        ? `${data.country?.iso_code}-${data.subdivisions[0].iso_code}`
-        : undefined,
-      city: getCityName(data.city),
+      region: getRegion(data.subdivisions) || "",
+      regionCode:
+        data.subdivisions?.[0]?.iso_code && data.country?.iso_code
+          ? `${data.country.iso_code}-${data.subdivisions[0].iso_code}`
+          : "",
+      city: getCityName(data.city) || "",
       latitude: data.location?.latitude || 0,
       longitude: data.location?.longitude || 0,
+      isp: "",
+      org: "",
+      asn: "",
       timezone: data.location?.time_zone || "",
-      accuracyRadius: data.location?.accuracy_radius,
       source: "maxmind-mmdb",
+      accuracyRadius: data.location?.accuracy_radius?.toString() || "",
+      isProxy: false,
     };
   };
 
@@ -247,20 +252,22 @@ export default function maxmindDriver(
 
     return {
       ip,
-      country: getCountryName(data.country),
+      country: getCountryName(data.country) || "",
       countryCode: data.country?.iso_code || "",
-      region: getRegion(data.subdivisions),
-      regionCode: data.subdivisions?.[0]?.iso_code
-        ? `${data.country?.iso_code}-${data.subdivisions[0].iso_code}`
-        : undefined,
-      city: getCityName(data.city),
+      region: getRegion(data.subdivisions) || "",
+      regionCode:
+        data.subdivisions?.[0]?.iso_code && data.country?.iso_code
+          ? `${data.country.iso_code}-${data.subdivisions[0].iso_code}`
+          : "",
+      city: getCityName(data.city) || "",
       latitude: data.location?.latitude || 0,
       longitude: data.location?.longitude || 0,
+      isp: data.traits?.isp || "",
+      org: data.traits?.organization || "",
+      asn: data.traits?.autonomous_system_number?.toString() || "",
       timezone: data.location?.time_zone || "",
-      accuracyRadius: data.location?.accuracy_radius,
-      isp: data.traits?.isp,
-      org: data.traits?.organization,
-      asn: data.traits?.autonomous_system_number?.toString(),
+      accuracyRadius: data.location?.accuracy_radius?.toString() || "",
+      isProxy: false,
       source: "maxmind-web",
     };
   };

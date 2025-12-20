@@ -1,6 +1,6 @@
 {
   "name": "geoip0",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "Unified geolocation information query library with multi-provider and fallback support",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",

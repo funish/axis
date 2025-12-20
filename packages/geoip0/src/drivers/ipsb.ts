@@ -34,17 +34,20 @@ export default function ipsbDriver(
 
       return {
         ip: data.ip,
-        country: data.country,
-        countryCode: data.country_code,
-        region: data.region_name,
-        city: data.city,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        isp: data.isp,
-        org: data.org,
+        country: data.country || "",
+        countryCode: data.country_code || "",
+        region: data.region_name || "",
+        city: data.city || "",
+        latitude: data.latitude || 0,
+        longitude: data.longitude || 0,
+        isp: data.isp || "",
+        org: data.org || "",
         asn: data.asn.toString(),
-        timezone: data.timezone,
+        timezone: data.timezone || "",
         source: "ip.sb",
+        regionCode: "",
+        accuracyRadius: "",
+        isProxy: false,
       };
     } catch {
       return null;
@@ -68,17 +71,20 @@ export default function ipsbDriver(
 
       return {
         ip: data.ip,
-        country: data.country,
-        countryCode: data.country_code,
-        region: data.region_name,
-        city: data.city,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        isp: data.isp,
-        org: data.org,
+        country: data.country || "",
+        countryCode: data.country_code || "",
+        region: data.region_name || "",
+        city: data.city || "",
+        latitude: data.latitude || 0,
+        longitude: data.longitude || 0,
+        isp: data.isp || "",
+        org: data.org || "",
         asn: data.asn.toString(),
-        timezone: data.timezone,
+        timezone: data.timezone || "",
         source: "ip.sb",
+        regionCode: "",
+        accuracyRadius: "",
+        isProxy: false,
       };
     } catch {
       return null;

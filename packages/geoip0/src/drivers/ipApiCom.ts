@@ -48,7 +48,7 @@ export default function ipApiComDriver(
   const lookup = async (
     ip: string,
     _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  ): Promise<GeoLocation> => {
     try {
       const fields = options.fields || DEFAULT_FIELDS;
       const lang = options.lang || "en";
@@ -58,36 +58,69 @@ export default function ipApiComDriver(
       const data: IpApiComResponse = await ofetch(url);
 
       if (data.status !== "success" || !data.query) {
-        return null;
+        return {
+          ip,
+          country: "",
+          countryCode: "",
+          region: "",
+          regionCode: "",
+          city: "",
+          latitude: 0,
+          longitude: 0,
+          isp: "",
+          org: "",
+          asn: "",
+          timezone: "",
+          source: "ip-api.com",
+          accuracyRadius: "",
+          isProxy: false,
+        };
       }
 
       return {
         ip: data.query,
-        country: data.country,
-        countryCode: data.countryCode,
-        region: data.regionName || data.region,
+        country: data.country || "",
+        countryCode: data.countryCode || "",
+        region: data.regionName || data.region || "",
         regionCode:
           data.region && data.countryCode
             ? `${data.countryCode}-${data.region}`
-            : undefined,
-        city: data.city,
+            : "",
+        city: data.city || "",
         latitude: data.lat || 0,
         longitude: data.lon || 0,
-        isp: data.isp,
-        org: data.org,
-        asn: data.as?.split(" ")[0] || data.as, // Extract AS number if available
-        timezone: data.timezone,
-        isProxy: data.proxy || data.hosting, // Include hosting as proxy-like behavior
+        isp: data.isp || "",
+        org: data.org || "",
+        asn: data.as?.split(" ")[0] || data.as || "",
+        timezone: data.timezone || "",
+        isProxy: data.proxy || data.hosting || false, // Include hosting as proxy-like behavior
         source: "ip-api.com",
+        accuracyRadius: "",
       };
     } catch {
-      return null;
+      return {
+        ip: "",
+        country: "",
+        countryCode: "",
+        region: "",
+        regionCode: "",
+        city: "",
+        latitude: 0,
+        longitude: 0,
+        isp: "",
+        org: "",
+        asn: "",
+        timezone: "",
+        source: "ip-api.com",
+        accuracyRadius: "",
+        isProxy: false,
+      };
     }
   };
 
   const current = async (
     _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  ): Promise<GeoLocation> => {
     try {
       let url = "http://ip-api.com/json";
 
@@ -101,30 +134,63 @@ export default function ipApiComDriver(
       const data: IpApiComResponse = await ofetch(url);
 
       if (data.status !== "success" || !data.query) {
-        return null;
+        return {
+          ip: "",
+          country: "",
+          countryCode: "",
+          region: "",
+          regionCode: "",
+          city: "",
+          latitude: 0,
+          longitude: 0,
+          isp: "",
+          org: "",
+          asn: "",
+          timezone: "",
+          source: "ip-api.com",
+          accuracyRadius: "",
+          isProxy: false,
+        };
       }
 
       return {
         ip: data.query,
-        country: data.country,
-        countryCode: data.countryCode,
-        region: data.regionName || data.region,
+        country: data.country || "",
+        countryCode: data.countryCode || "",
+        region: data.regionName || data.region || "",
         regionCode:
           data.region && data.countryCode
             ? `${data.countryCode}-${data.region}`
-            : undefined,
-        city: data.city,
+            : "",
+        city: data.city || "",
         latitude: data.lat || 0,
         longitude: data.lon || 0,
-        isp: data.isp,
-        org: data.org,
-        asn: data.as?.split(" ")[0] || data.as,
-        timezone: data.timezone,
-        isProxy: data.proxy || data.hosting,
+        isp: data.isp || "",
+        org: data.org || "",
+        asn: data.as?.split(" ")[0] || data.as || "",
+        timezone: data.timezone || "",
+        isProxy: data.proxy || data.hosting || false,
         source: "ip-api.com",
+        accuracyRadius: "",
       };
     } catch {
-      return null;
+      return {
+        ip: "",
+        country: "",
+        countryCode: "",
+        region: "",
+        regionCode: "",
+        city: "",
+        latitude: 0,
+        longitude: 0,
+        isp: "",
+        org: "",
+        asn: "",
+        timezone: "",
+        source: "ip-api.com",
+        accuracyRadius: "",
+        isProxy: false,
+      };
     }
   };
 
@@ -162,17 +228,23 @@ export default function ipApiComDriver(
         if (data && data.status === "success" && data.query) {
           results.push({
             ip: data.query,
-            country: data.country,
-            countryCode: data.countryCode,
-            region: data.regionName || data.region,
-            city: data.city,
+            country: data.country || "",
+            countryCode: data.countryCode || "",
+            region: data.regionName || data.region || "",
+            regionCode:
+              data.region && data.countryCode
+                ? `${data.countryCode}-${data.region}`
+                : "",
+            city: data.city || "",
             latitude: data.lat || 0,
             longitude: data.lon || 0,
-            isp: data.isp,
-            org: data.org,
-            asn: data.as?.split(" ")[0] || data.as,
-            timezone: data.timezone,
+            isp: data.isp || "",
+            org: data.org || "",
+            asn: data.as?.split(" ")[0] || data.as || "",
+            timezone: data.timezone || "",
             source: "ip-api.com",
+            accuracyRadius: "",
+            isProxy: data.proxy || data.hosting || false,
           });
         }
         // Failed lookups are silently ignored, similar to other drivers

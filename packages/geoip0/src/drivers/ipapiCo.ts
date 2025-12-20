@@ -60,17 +60,20 @@ export default function ipapiCoDriver(
 
       return {
         ip: data.ip,
-        country: data.country_name || data.country,
-        countryCode: data.country_code,
-        region: data.region,
-        city: data.city,
+        country: data.country_name || data.country || "",
+        countryCode: data.country_code || "",
+        region: data.region || "",
+        city: data.city || "",
         latitude: data.latitude || 0,
         longitude: data.longitude || 0,
-        isp: data.org,
-        org: data.org,
-        asn: data.asn,
-        timezone: data.timezone,
+        isp: data.org || "",
+        org: data.org || "",
+        asn: data.asn || "",
+        timezone: data.timezone || "",
         source: "ipapi.co",
+        regionCode: "",
+        accuracyRadius: "",
+        isProxy: false,
       };
     } catch {
       return null;
@@ -95,17 +98,20 @@ export default function ipapiCoDriver(
 
       return {
         ip: data.ip,
-        country: data.country_name || data.country,
-        countryCode: data.country_code,
-        region: data.region,
-        city: data.city,
+        country: data.country_name || data.country || "",
+        countryCode: data.country_code || "",
+        region: data.region || "",
+        city: data.city || "",
         latitude: data.latitude || 0,
         longitude: data.longitude || 0,
-        isp: data.org,
-        org: data.org,
-        asn: data.asn,
-        timezone: data.timezone,
+        isp: data.org || "",
+        org: data.org || "",
+        asn: data.asn || "",
+        timezone: data.timezone || "",
         source: "ipapi.co",
+        regionCode: "",
+        accuracyRadius: "",
+        isProxy: false,
       };
     } catch {
       return null;

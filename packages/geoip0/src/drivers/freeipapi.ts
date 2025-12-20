@@ -46,17 +46,20 @@ export default function freeipapiDriver(
 
       return {
         ip: data.ipAddress,
-        country: data.countryName,
-        countryCode: data.countryCode,
-        region: data.regionName,
-        city: data.cityName,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        isp: data.asnOrganization,
-        org: data.asnOrganization,
-        asn: data.asn,
-        timezone: data.timeZones?.[0] || "", // Use first timezone
+        country: data.countryName || "",
+        countryCode: data.countryCode || "",
+        region: data.regionName || "",
+        city: data.cityName || "",
+        latitude: data.latitude || 0,
+        longitude: data.longitude || 0,
+        isp: data.asnOrganization || "",
+        org: data.asnOrganization || "",
+        asn: data.asn || "",
+        timezone: data.timeZones?.[0] || "",
         source: "freeipapi",
+        regionCode: "",
+        accuracyRadius: "",
+        isProxy: false,
       };
     } catch {
       return null;
@@ -82,17 +85,20 @@ export default function freeipapiDriver(
 
       return {
         ip: data.ipAddress,
-        country: data.countryName,
-        countryCode: data.countryCode,
-        region: data.regionName,
-        city: data.cityName,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        isp: data.asnOrganization,
-        org: data.asnOrganization,
-        asn: data.asn,
-        timezone: data.timeZones?.[0] || "", // Use first timezone
+        country: data.countryName || "",
+        countryCode: data.countryCode || "",
+        region: data.regionName || "",
+        city: data.cityName || "",
+        latitude: data.latitude || 0,
+        longitude: data.longitude || 0,
+        isp: data.asnOrganization || "",
+        org: data.asnOrganization || "",
+        asn: data.asn || "",
+        timezone: data.timeZones?.[0] || "",
         source: "freeipapi",
+        regionCode: "",
+        accuracyRadius: "",
+        isProxy: false,
       };
     } catch {
       return null;
@@ -126,6 +132,7 @@ export default function freeipapiDriver(
             country: data.countryName,
             countryCode: data.countryCode,
             region: data.regionName,
+            regionCode: "",
             city: data.cityName,
             latitude: data.latitude,
             longitude: data.longitude,
@@ -134,6 +141,8 @@ export default function freeipapiDriver(
             asn: data.asn,
             timezone: data.timeZones?.[0] || "", // Use first timezone
             source: "freeipapi",
+            accuracyRadius: "",
+            isProxy: false,
           });
         }
       }

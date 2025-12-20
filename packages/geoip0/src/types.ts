@@ -5,23 +5,21 @@
 
 // Geolocation information
 export interface GeoLocation {
-  ip?: string; // IP address
-  country?: string; // Country name
-  countryCode?: string; // Country code
-  region?: string; // Region/Province
-  regionCode?: string; // ISO 3166-2 region code (e.g., "US-CA")
-  city?: string; // City
-  latitude?: number; // Latitude
-  longitude?: number; // Longitude
-  isp?: string; // ISP provider
-  org?: string; // Organization
-  asn?: string; // ASN number
-  timezone?: string; // Timezone
-  source?: string; // Data source
-
-  // Extended fields (optional, data source dependent)
-  accuracyRadius?: number; // Accuracy radius in kilometers
-  isProxy?: boolean; // Whether IP is identified as proxy/VPN
+  ip: string; // IP address
+  country: string; // Country name
+  countryCode: string; // Country code
+  region: string; // Region/Province
+  regionCode: string; // ISO 3166-2 region code (e.g., "US-CA")
+  city: string; // City
+  latitude: number; // Latitude
+  longitude: number; // Longitude
+  isp: string; // ISP provider
+  org: string; // Organization
+  asn: string; // ASN number
+  timezone: string; // Timezone
+  source: string; // Data source
+  accuracyRadius: string; // Accuracy radius in kilometers
+  isProxy: boolean; // Whether IP is identified as proxy/VPN
 }
 
 // Driver options
