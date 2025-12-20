@@ -9,7 +9,7 @@
 
 ## Features
 
-- 🌍 **Multi-Provider Support**: Unified API for IP.SB, Cloudflare Radar, MaxMind, and more
+- 🌍 **Multi-Provider Support**: Unified API for IP.SB, Cloudflare Radar, MaxMind, RDAP, and more
 - 🔄 **Driver Pattern**: Consistent interface across different geolocation providers
 - 📝 **TypeScript First**: Full type safety with comprehensive location data types
 - 🚀 **High Performance**: Built on modern HTTP clients with minimal dependencies
@@ -53,10 +53,16 @@ const geoipFallback = createGeoIPManager({
   driver: multiDriver({
     drivers: [
       ipsbDriver(), // Try IP.SB first
+      rdapDriver(), // Try RDAP for official registry data
       freeipapiDriver(), // Fallback to FreeIPAPI
       cloudflareDriver(), // Fallback to Cloudflare
     ],
   }),
+});
+
+// Create GeoIP manager with RDAP driver for official registry data
+const geoipRdap = createGeoIPManager({
+  driver: rdapDriver(),
 });
 ```
 
@@ -119,6 +125,9 @@ import maxmindDriver, {
   MaxMindWebOptions,
 } from "geoip0/drivers/maxmind";
 
+// RDAP driver (official registry data from Regional Internet Registries)
+import rdapDriver, { RdapDriverOptions } from "geoip0/drivers/rdap";
+
 // Multi driver (automatic fallback between multiple drivers)
 import multiDriver from "geoip0/drivers/multi";
 ```
@@ -164,6 +173,53 @@ import { MMDBMetadataParser } from "geoip0/mmdb";
 const metadata = MMDBMetadataParser.parse(mmdbData);
 console.log(metadata.databaseType, metadata.buildEpoch);
 ```
+
+### RDAP Driver
+
+RDAP (Registration Data Access Protocol) provides official network registry data from Regional Internet Registries. This driver offers authoritative information about IP network ownership and organization details.
+
+```typescript
+import rdapDriver, { RdapDriverOptions } from "geoip0/drivers/rdap";
+
+// Basic RDAP driver usage
+const rdap = createGeoIPManager({
+  driver: rdapDriver(),
+});
+
+// RDAP driver with custom configuration
+const rdapCustom = createGeoIPManager({
+  driver: rdapDriver({
+    baseUrl: "https://rdap.arin.net/registry", // Custom RDAP server
+  }),
+});
+
+// Query IP using RDAP
+const result = await rdap.lookup("8.8.8.8");
+console.log(result);
+// Output: {
+//   ip: "8.8.8.8",
+//   country: "US",
+//   isp: "Google LLC",
+//   org: "Google LLC",
+//   asn: "15169",
+//   source: "rdap"
+// }
+```
+
+**RDAP Driver Features:**
+
+- **Official Data**: Provides authoritative network registry information
+- **Network Ownership**: Detailed ISP and organization data
+- **Entity Information**: Rich contact and organizational details when available
+- **ASN Information**: Autonomous System Numbers and network ranges
+- **Custom Servers**: Support for regional RDAP servers
+- **IPv4/IPv6 Support**: Full support for both IP versions
+
+**Limitations:**
+
+- No current IP detection (requires specific IP address)
+- Less precise geolocation compared to commercial GeoIP services
+- Data focuses on network ownership rather than exact locations
 
 ### Error Handling
 

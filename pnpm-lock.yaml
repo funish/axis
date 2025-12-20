@@ -40,6 +40,9 @@ importers:
       ofetch:
         specifier: 1.4.1
         version: 1.4.1
+      rdap:
+        specifier: workspace:*
+        version: link:../rdap
       undio:
         specifier: 0.2.0
         version: 0.2.0

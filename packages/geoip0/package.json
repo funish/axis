@@ -1,6 +1,6 @@
 {
   "name": "geoip0",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Unified geolocation information query library with multi-provider and fallback support",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -53,6 +53,8 @@
     "maxmind",
     "fallback",
     "multi-driver",
+    "rdap",
+    "registry-data",
     "typescript"
   ],
   "author": {
@@ -69,6 +71,7 @@
     "h3": "2.0.1-rc.5",
     "ipdo": "workspace:*",
     "ofetch": "1.4.1",
+    "rdap": "workspace:*",
     "undio": "0.2.0"
   }
 }
