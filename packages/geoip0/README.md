@@ -19,6 +19,7 @@
 - 🗄️ **MMDB Support**: Native MaxMind database support with high-performance local lookups
 - 🌐 **Web Service Integration**: MaxMind GeoIP Web Services with comprehensive data
 - 🔧 **Dual Mode**: Seamless switching between MMDB database and web service modes
+- 🔄 **Multi-Driver Support**: Combine multiple providers with automatic fallback for high reliability
 
 ## Installation
 
@@ -40,10 +41,22 @@ $ pnpm add geoip0
 ```typescript
 import { createGeoIPManager } from "geoip0";
 import ipsbDriver from "geoip0/drivers/ipsb";
+import multiDriver from "geoip0/drivers/multi";
 
-// Create GeoIP manager with IP.SB driver
+// Create GeoIP manager with single driver
 const geoip = createGeoIPManager({
   driver: ipsbDriver(),
+});
+
+// Create GeoIP manager with multiple drivers (automatic fallback)
+const geoipFallback = createGeoIPManager({
+  driver: multiDriver({
+    drivers: [
+      ipsbDriver(), // Try IP.SB first
+      freeipapiDriver(), // Fallback to FreeIPAPI
+      cloudflareDriver(), // Fallback to Cloudflare
+    ],
+  }),
 });
 ```
 
@@ -105,6 +118,9 @@ import maxmindDriver, {
   MaxMindMMDBOptions,
   MaxMindWebOptions,
 } from "geoip0/drivers/maxmind";
+
+// Multi driver (automatic fallback between multiple drivers)
+import multiDriver from "geoip0/drivers/multi";
 ```
 
 ### HTTP Server

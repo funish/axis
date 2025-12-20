@@ -1,7 +1,7 @@
 {
   "name": "geoip0",
-  "version": "0.0.7",
-  "description": "Unified geolocation information query library with multi-provider support",
+  "version": "0.0.8",
+  "description": "Unified geolocation information query library with multi-provider and fallback support",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "files": [
@@ -49,6 +49,10 @@
     "ip-location",
     "asn",
     "isp",
+    "mmdb",
+    "maxmind",
+    "fallback",
+    "multi-driver",
     "typescript"
   ],
   "author": {
