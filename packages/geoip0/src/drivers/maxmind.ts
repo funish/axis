@@ -206,10 +206,14 @@ export default function maxmindDriver(
       country: getCountryName(data.country),
       countryCode: data.country?.iso_code || "",
       region: getRegion(data.subdivisions),
+      regionCode: data.subdivisions?.[0]?.iso_code
+        ? `${data.country?.iso_code}-${data.subdivisions[0].iso_code}`
+        : undefined,
       city: getCityName(data.city),
       latitude: data.location?.latitude || 0,
       longitude: data.location?.longitude || 0,
       timezone: data.location?.time_zone || "",
+      accuracyRadius: data.location?.accuracy_radius,
       source: "maxmind-mmdb",
     };
   };
@@ -246,10 +250,14 @@ export default function maxmindDriver(
       country: getCountryName(data.country),
       countryCode: data.country?.iso_code || "",
       region: getRegion(data.subdivisions),
+      regionCode: data.subdivisions?.[0]?.iso_code
+        ? `${data.country?.iso_code}-${data.subdivisions[0].iso_code}`
+        : undefined,
       city: getCityName(data.city),
       latitude: data.location?.latitude || 0,
       longitude: data.location?.longitude || 0,
       timezone: data.location?.time_zone || "",
+      accuracyRadius: data.location?.accuracy_radius,
       isp: data.traits?.isp,
       org: data.traits?.organization,
       asn: data.traits?.autonomous_system_number?.toString(),

@@ -318,6 +318,7 @@ export interface GeoLocation {
   country?: string; // Country name
   countryCode?: string; // Country code
   region?: string; // Region/Province
+  regionCode?: string; // ISO 3166-2 region code (e.g., "US-CA")
   city?: string; // City
   latitude?: number; // Latitude
   longitude?: number; // Longitude
@@ -326,6 +327,10 @@ export interface GeoLocation {
   asn?: string; // ASN number
   timezone?: string; // Timezone
   source?: string; // Data source
+
+  // Extended fields (optional, data source dependent)
+  accuracyRadius?: number; // Accuracy radius in kilometers
+  isProxy?: boolean; // Whether IP is identified as proxy/VPN
 }
 ```
 

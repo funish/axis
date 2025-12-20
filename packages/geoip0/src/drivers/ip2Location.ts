@@ -61,6 +61,7 @@ export default function ip2LocationDriver(
         org: data.as,
         asn: data.asn,
         timezone: data.time_zone,
+        isProxy: data.is_proxy,
         source: "ip2location.io",
       };
     } catch {
@@ -98,6 +99,7 @@ export default function ip2LocationDriver(
         org: data.as,
         asn: data.asn,
         timezone: data.time_zone,
+        isProxy: data.is_proxy,
         source: "ip2location.io",
       };
     } catch {

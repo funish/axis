@@ -66,6 +66,10 @@ export default function ipApiComDriver(
         country: data.country,
         countryCode: data.countryCode,
         region: data.regionName || data.region,
+        regionCode:
+          data.region && data.countryCode
+            ? `${data.countryCode}-${data.region}`
+            : undefined,
         city: data.city,
         latitude: data.lat || 0,
         longitude: data.lon || 0,
@@ -73,6 +77,7 @@ export default function ipApiComDriver(
         org: data.org,
         asn: data.as?.split(" ")[0] || data.as, // Extract AS number if available
         timezone: data.timezone,
+        isProxy: data.proxy || data.hosting, // Include hosting as proxy-like behavior
         source: "ip-api.com",
       };
     } catch {
@@ -104,6 +109,10 @@ export default function ipApiComDriver(
         country: data.country,
         countryCode: data.countryCode,
         region: data.regionName || data.region,
+        regionCode:
+          data.region && data.countryCode
+            ? `${data.countryCode}-${data.region}`
+            : undefined,
         city: data.city,
         latitude: data.lat || 0,
         longitude: data.lon || 0,
@@ -111,6 +120,7 @@ export default function ipApiComDriver(
         org: data.org,
         asn: data.as?.split(" ")[0] || data.as,
         timezone: data.timezone,
+        isProxy: data.proxy || data.hosting,
         source: "ip-api.com",
       };
     } catch {
