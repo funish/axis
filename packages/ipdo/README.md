@@ -295,6 +295,26 @@ Get total number of addresses in CIDR range.
 
 Check if two CIDR ranges overlap.
 
+### 📦 Byte Array Conversions
+
+#### `ipv4ToBytes(ip: string): number[]`
+
+Parse IPv4 address to byte array directly. More efficient than ArrayBuffer conversion.
+
+#### `ipv6ToBytes(ip: string): number[]`
+
+Parse IPv6 address to byte array directly. Supports compressed notation.
+
+#### `ipToBytes(ip: string): number[]`
+
+Parse IP address to byte array (unified function). Chooses the most efficient method based on IP version.
+
+### 🔢 IP Version Detection
+
+#### `getIPVersion(ip: string): 4 | 6 | null`
+
+Get IP version (4 for IPv4, 6 for IPv6). Returns null if invalid.
+
 ## ⚠️ Error Handling
 
 The library throws descriptive errors for:
