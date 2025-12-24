@@ -3,7 +3,7 @@
 ![GitHub](https://img.shields.io/github/license/funish/axis)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](https://www.contributor-covenant.org/version/2/1/code_of_conduct/)
 
-> Unified network toolkit for IP address manipulation, RDAP operations, DNS management, and geolocation queries
+> Unified network toolkit for IP address manipulation, RDAP operations, DNS management, geolocation queries, and network connectivity detection
 
 ## Packages
 
@@ -13,6 +13,7 @@ This is a monorepo that contains the following packages:
 - **[rdap](./packages/rdap/README.md)** - Modern RDAP (Registration Data Access Protocol) client
 - **[undns](./packages/undns/README.md)** - Core DNS management library with unified API
 - **[geoip0](./packages/geoip0/README.md)** - Unified geolocation information query library with multi-provider support
+- **[unping](./packages/unping/README.md)** - Unified network connectivity detection library with multi-driver support
 
 ## Quick Start
 
@@ -78,6 +79,19 @@ console.log(
   currentLocation?.country,
   currentLocation?.city,
 );
+
+// Network connectivity detection with unping
+import { createPingManager } from "unping";
+import tcpDriver from "unping/drivers/tcp";
+
+const ping = createPingManager({
+  driver: tcpDriver({ port: 80 }),
+});
+
+const results = await ping.ping("example.com");
+console.log(
+  `Host is ${results[0].alive ? "reachable" : "unreachable"} (${results[0].time}ms)`,
+);
 ```
 
 ### Development
@@ -96,6 +110,7 @@ pnpm lint
 bun playground/drivers/node.ts
 bun playground/geoip0/drivers/ipsb.ts
 bun playground/geoip0/server.ts
+bun playground/unping/drivers/tcp.ts
 ```
 
 ## Contributing

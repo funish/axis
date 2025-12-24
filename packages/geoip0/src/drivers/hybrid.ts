@@ -1,17 +1,17 @@
 /**
- * Multi Driver
+ * Hybrid Driver
  * Combines multiple drivers with automatic fallback support
  */
 
 import type { Driver, GeoLocation, QueryOptions, DriverOptions } from "..";
 
-export interface MultiDriverOptions extends DriverOptions {
+export interface HybridDriverOptions extends DriverOptions {
   drivers: Driver<any>[];
 }
 
-export default function multiDriver(
-  options: MultiDriverOptions,
-): Driver<MultiDriverOptions> {
+export default function hybridDriver(
+  options: HybridDriverOptions,
+): Driver<HybridDriverOptions> {
   const { drivers } = options;
 
   const lookup = async (
@@ -68,7 +68,7 @@ export default function multiDriver(
   };
 
   return {
-    name: "multi",
+    name: "hybrid",
     options,
     lookup,
     current,

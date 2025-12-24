@@ -1,46 +1,27 @@
 import type { Driver, DriverOptions, PingResult, PingOptions } from "../types";
 
 export interface HybridDriverOptions extends DriverOptions {
-  /** Priority order of drivers (default: ["tcp", "http", "dns"]) */
-  priority?: Array<"http" | "tcp" | "dns">;
+  /** Array of drivers to try in order (default: [tcp, http, dns]) */
+  drivers?: Driver[];
 }
 
 export default function hybridDriver(
   options: HybridDriverOptions = {},
 ): Driver {
-  const { priority = ["tcp", "http", "dns"] } = options;
+  const { drivers: customDrivers } = options;
+  const defaultDrivers = getDefaultDrivers();
+
+  const drivers = customDrivers || defaultDrivers;
 
   const ping = async (
     host: string,
     opts?: PingOptions,
   ): Promise<PingResult[]> => {
-    // Try each driver in priority order
+    // Try each driver in order
     const lastError = new Error("All drivers failed");
 
-    for (const driverType of priority) {
+    for (const driver of drivers) {
       try {
-        let driver: Driver;
-
-        switch (driverType) {
-          case "http": {
-            const { default: httpDriver } = await import("./http");
-            driver = httpDriver(options);
-            break;
-          }
-          case "tcp": {
-            const { default: tcpDriver } = await import("./tcp");
-            driver = tcpDriver(options);
-            break;
-          }
-          case "dns": {
-            const { default: dnsDriver } = await import("./dns");
-            driver = dnsDriver(options);
-            break;
-          }
-          default:
-            continue;
-        }
-
         const result = await driver.ping!(host, opts);
         return result;
       } catch (error) {
@@ -57,4 +38,17 @@ export default function hybridDriver(
     options,
     ping,
   };
+}
+
+// Get default driver configuration
+function getDefaultDrivers(): Driver[] {
+  const { default: tcpDriver } = require("./tcp");
+  const { default: httpDriver } = require("./http");
+  const { default: dnsDriver } = require("./dns");
+
+  return [
+    tcpDriver({ port: 80 }),
+    httpDriver({ method: "HEAD" }),
+    dnsDriver({ type: "A" }),
+  ];
 }

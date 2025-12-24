@@ -107,20 +107,31 @@ console.log(`DNS Resolution: ${results[0].alive ? "Success" : "Failed"}`);
 
 ### Hybrid Driver
 
-Smart detection with automatic fallback between multiple methods.
+Smart detection with automatic fallback between multiple drivers.
 
 ```typescript
 import hybridDriver from "unping/drivers/hybrid";
+import tcpDriver from "unping/drivers/tcp";
+import httpDriver from "unping/drivers/http";
+import dnsDriver from "unping/drivers/dns";
 
+// Use default driver configuration (TCP → HTTP → DNS)
 const hybrid = createPingManager({
+  driver: hybridDriver(),
+});
+
+// Or specify custom drivers with specific configurations
+const customHybrid = createPingManager({
   driver: hybridDriver({
-    priority: ["tcp", "http", "dns"], // Try TCP first, then HTTP, then DNS
+    drivers: [
+      tcpDriver({ port: 443 }), // Try HTTPS first
+      httpDriver({ method: "GET" }), // Then HTTP GET
+      dnsDriver({ type: "AAAA" }), // Then IPv6 DNS
+    ],
   }),
 });
 
-// Automatically tries TCP → HTTP → DNS until one succeeds
 const results = await hybrid.ping("example.com");
-console.log(`Detection Method: ${results[0].source || "auto"}`);
 console.log(`Alive: ${results[0].alive}`);
 console.log(`Time: ${results[0].time}ms`);
 ```
@@ -217,10 +228,16 @@ const dns = createPingManager({
 
 ```typescript
 import hybridDriver from "unping/drivers/hybrid";
+import tcpDriver from "unping/drivers/tcp";
+import httpDriver from "unping/drivers/http";
 
 const hybrid = createPingManager({
   driver: hybridDriver({
-    priority: ["http", "tcp", "dns"], // Custom priority order
+    drivers: [
+      tcpDriver({ port: 8080 }), // Custom TCP driver
+      httpDriver({ method: "GET" }), // Custom HTTP driver
+      // Add more drivers as needed
+    ],
   }),
 });
 ```
@@ -324,7 +341,7 @@ interface DNSDriverOptions {
 
 ```typescript
 interface HybridDriverOptions {
-  priority?: Array<"http" | "tcp" | "dns">; // Detection priority (default: ["tcp", "http", "dns"])
+  drivers?: Driver[]; // Array of drivers to try in order (default: [tcp, http, dns])
 }
 ```
 
@@ -342,17 +359,33 @@ The Hybrid Driver provides intelligent network connectivity detection by trying 
 - **HTTP Second**: Validates that the service is actually responding at application level (~100-300ms)
 - **DNS Last**: Only checks if domain can be resolved, doesn't guarantee host reachability (~10-20ms)
 
-**Custom Priority Example:**
+**Custom Driver Configuration Example:**
 
 ```typescript
 // For web service monitoring - prioritize HTTP
+import httpDriver from "unping/drivers/http";
+import tcpDriver from "unping/drivers/tcp";
+import dnsDriver from "unping/drivers/dns";
+
 const webMonitor = createPingManager({
-  driver: hybridDriver({ priority: ["http", "tcp", "dns"] }),
+  driver: hybridDriver({
+    drivers: [
+      httpDriver({ method: "HEAD", path: "/health" }),
+      tcpDriver({ port: 80 }),
+      dnsDriver(),
+    ],
+  }),
 });
 
 // For quick connectivity checks - prioritize TCP
 const quickCheck = createPingManager({
-  driver: hybridDriver({ priority: ["tcp", "dns", "http"] }),
+  driver: hybridDriver({
+    drivers: [
+      tcpDriver({ port: 443 }),
+      dnsDriver(),
+      httpDriver({ method: "GET" }),
+    ],
+  }),
 });
 ```
 
@@ -392,8 +425,19 @@ for (const port of ports) {
 ### Network Diagnostics
 
 ```typescript
+import hybridDriver from "unping/drivers/hybrid";
+import tcpDriver from "unping/drivers/tcp";
+import httpDriver from "unping/drivers/http";
+import dnsDriver from "unping/drivers/dns";
+
 const diagnostic = createPingManager({
-  driver: hybridDriver({ priority: ["tcp", "http", "dns"] }),
+  driver: hybridDriver({
+    drivers: [
+      tcpDriver({ port: 80 }),
+      httpDriver({ method: "HEAD" }),
+      dnsDriver(),
+    ],
+  }),
 });
 
 const hosts = ["google.com", "github.com", "cloudflare.com"];

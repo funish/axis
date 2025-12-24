@@ -41,7 +41,7 @@ $ pnpm add geoip0
 ```typescript
 import { createGeoIPManager } from "geoip0";
 import ipsbDriver from "geoip0/drivers/ipsb";
-import multiDriver from "geoip0/drivers/multi";
+import hybridDriver from "geoip0/drivers/hybrid";
 
 // Create GeoIP manager with single driver
 const geoip = createGeoIPManager({
@@ -50,7 +50,7 @@ const geoip = createGeoIPManager({
 
 // Create GeoIP manager with multiple drivers (automatic fallback)
 const geoipFallback = createGeoIPManager({
-  driver: multiDriver({
+  driver: hybridDriver({
     drivers: [
       ipsbDriver(), // Try IP.SB first
       rdapDriver(), // Try RDAP for official registry data
@@ -128,8 +128,8 @@ import maxmindDriver, {
 // RDAP driver (official registry data from Regional Internet Registries)
 import rdapDriver, { RdapDriverOptions } from "geoip0/drivers/rdap";
 
-// Multi driver (automatic fallback between multiple drivers)
-import multiDriver from "geoip0/drivers/multi";
+// Hybrid driver (automatic fallback between multiple drivers)
+import hybridDriver from "geoip0/drivers/hybrid";
 ```
 
 ### HTTP Server

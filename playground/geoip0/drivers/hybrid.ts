@@ -1,15 +1,15 @@
 /**
- * Multi Driver Examples
+ * Hybrid Driver Examples
  * Demonstrating automatic fallback functionality with multiple drivers
  */
 
 import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
-import multiDriver from "../../../packages/geoip0/src/drivers/multi";
+import hybridDriver from "../../../packages/geoip0/src/drivers/hybrid";
 import ipsbDriver from "../../../packages/geoip0/src/drivers/ipsb";
 import freeipapiDriver from "../../../packages/geoip0/src/drivers/freeipapi";
 import cloudflareDriver from "../../../packages/geoip0/src/drivers/cloudflare";
 
-console.log("Multi Driver Examples\n");
+console.log("Hybrid Driver Examples\n");
 
 // Test IPs (standard set used across all drivers)
 const testIPv4 = "1.1.1.1"; // Cloudflare DNS
@@ -21,11 +21,11 @@ const testIPs = [
   "9.9.9.9", // Quad9 DNS
 ];
 
-async function runMultiDriverExamples() {
-  console.log("=== Multi Driver Fallback Examples ===");
+async function runHybridDriverExamples() {
+  console.log("=== Hybrid Driver Fallback Examples ===");
 
-  // Create multi driver with automatic fallback
-  const multiDriverInstance = multiDriver({
+  // Create hybrid driver with automatic fallback
+  const hybridDriverInstance = hybridDriver({
     drivers: [
       ipsbDriver(), // Try IP.SB first (comprehensive data)
       freeipapiDriver(), // Fallback to FreeIPAPI
@@ -33,7 +33,7 @@ async function runMultiDriverExamples() {
     ],
   });
 
-  const geoip = createGeoIPManager({ driver: multiDriverInstance });
+  const geoip = createGeoIPManager({ driver: hybridDriverInstance });
 
   console.log("\n--- IPv4 Lookup (with fallback) ---");
   try {
@@ -110,7 +110,7 @@ async function runConfigurationExamples() {
 
   // Example 1: High reliability configuration
   console.log("\n--- High Reliability Configuration ---");
-  const _highReliabilityDriver = multiDriver({
+  const _highReliabilityDriver = hybridDriver({
     drivers: [
       ipsbDriver(), // Primary - comprehensive data
       freeipapiDriver(), // Secondary - good fallback
@@ -120,7 +120,7 @@ async function runConfigurationExamples() {
 
   // Example 2: Different driver order
   console.log("\n--- Custom Driver Order ---");
-  const customOrderDriver = multiDriver({
+  const customOrderDriver = hybridDriver({
     drivers: [
       cloudflareDriver(), // Try this first (fast)
       freeipapiDriver(), // Then this (detailed)
@@ -130,7 +130,7 @@ async function runConfigurationExamples() {
 
   // Example 3: Minimal configuration
   console.log("\n--- Minimal Configuration ---");
-  const _minimalDriver = multiDriver({
+  const _minimalDriver = hybridDriver({
     drivers: [
       freeipapiDriver(), // Just one fallback
       cloudflareDriver(), // And another
@@ -161,7 +161,7 @@ async function runErrorHandlingExamples() {
 
   // Example: All drivers fail (simulated with invalid configuration)
   console.log("\n--- All Drivers Fallback ---");
-  const failingDrivers = multiDriver({
+  const failingDrivers = hybridDriver({
     drivers: [
       // Note: These are real drivers, but they might fail due to network issues
       ipsbDriver(),
@@ -187,13 +187,13 @@ async function runErrorHandlingExamples() {
 
 // Run all examples
 async function runAllExamples() {
-  await runMultiDriverExamples();
+  await runHybridDriverExamples();
   await runConfigurationExamples();
   await runErrorHandlingExamples();
 
-  console.log("\nMulti driver examples completed!");
+  console.log("\nHybrid driver examples completed!");
   console.log(
-    "Note: The multi driver automatically tries each driver in order until one succeeds.",
+    "Note: The hybrid driver automatically tries each driver in order until one succeeds.",
   );
 }
 
