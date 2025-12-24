@@ -205,7 +205,7 @@ export default function rdapDriver(
         accuracyRadius: "",
         isProxy: false,
       };
-    } catch (error) {
+    } catch {
       // Return empty object on error
       return {
         ip,

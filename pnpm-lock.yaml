@@ -76,6 +76,12 @@ importers:
         specifier: 1.4.1
         version: 1.4.1
 
+  packages/unping:
+    dependencies:
+      ofetch:
+        specifier: 1.4.1
+        version: 1.4.1
+
   playground:
     dependencies:
       geoip0:
