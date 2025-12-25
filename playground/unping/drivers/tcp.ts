@@ -8,22 +8,40 @@ import tcpDriver from "../../../packages/unping/src/drivers/tcp";
 
 console.log("TCP Driver Examples\n");
 
-const tcp = tcpDriver({ port: 80 });
-const manager = createPingManager({ driver: tcp });
+const testHosts = ["cloudflare.com", "google.com", "github.com", "example.com"];
 
-const testHosts = ["google.com", "github.com", "cloudflare.com", "example.com"];
+// Helper function: Print single result
+function printResult(result: { host: string; alive: boolean; time: number }) {
+  console.log(
+    `  ${result.host}: ${result.alive ? "OK" : "FAIL"} ${result.time}ms`,
+  );
+}
+
+// Helper function: Print statistics
+function printStatistics(results: Array<{ alive: boolean; time: number }>) {
+  const aliveCount = results.filter((r) => r.alive).length;
+  const avgTime = Math.round(
+    results.reduce((sum, r) => sum + r.time, 0) / results.length,
+  );
+  console.log("\nStatistics:");
+  console.log(`  Success rate: ${aliveCount}/${results.length}`);
+  console.log(`  Average time: ${avgTime}ms`);
+}
 
 async function runBasicExamples() {
   console.log("=== Basic TCP Ping Examples ===\n");
 
-  console.log("--- Single TCP Connection Test ---");
-  try {
-    const results = await manager.ping("google.com");
-    console.log(`Host: ${results[0].host}`);
-    console.log(`Alive: ${results[0].alive}`);
-    console.log(`Time: ${results[0].time}ms`);
-  } catch {
-    console.log("Error occurred");
+  console.log("--- Multiple TCP Connections (port 443) ---");
+  const tcp = tcpDriver({ port: 443 });
+  const manager = createPingManager({ driver: tcp });
+
+  for (const host of testHosts) {
+    try {
+      const results = await manager.ping(host, { timeout: 3000 });
+      printResult(results[0]);
+    } catch {
+      console.log(`  ${host}: Error occurred`);
+    }
   }
 }
 
@@ -38,25 +56,30 @@ async function runPortExamples() {
 
   for (const { port, name } of ports) {
     console.log(`--- Testing ${name} (port ${port}) ---`);
-    try {
-      const driver = tcpDriver({ port });
-      const mgr = createPingManager({ driver });
-      const results = await mgr.ping("google.com");
-      console.log(
-        `  ${name}: ${results[0].alive ? "✓" : "✗"} ${results[0].time}ms`,
-      );
-    } catch {
-      console.log(`  ${name}: Connection refused/timeout`);
+    const driver = tcpDriver({ port });
+    const mgr = createPingManager({ driver });
+
+    for (const host of testHosts.slice(0, 2)) {
+      try {
+        const results = await mgr.ping(host);
+        const r = results[0];
+        console.log(`  ${host}: ${r.alive ? "OK" : "FAIL"} ${r.time}ms`);
+      } catch {
+        console.log(`  ${host}: Connection refused/timeout`);
+      }
     }
   }
 }
 
-async function runBatchExamples() {
-  console.log("\n=== Batch TCP Ping Examples ===\n");
+async function runBatchExample() {
+  console.log("\n=== Batch TCP Connections ===\n");
 
-  console.log("--- Multiple TCP Connections ---");
+  const tcp = tcpDriver({ port: 443 });
+  const manager = createPingManager({ driver: tcp });
+  const testHost = testHosts[0];
+
   try {
-    const results = await manager.ping("google.com", {
+    const results = await manager.ping(testHost, {
       count: 5,
       interval: 300,
       timeout: 5000,
@@ -65,98 +88,20 @@ async function runBatchExamples() {
     console.log(`Total connections: ${results.length}`);
     results.forEach((r) => {
       console.log(
-        `  [${r.sequence}] ${r.host}: ${r.alive ? "✓" : "✗"} ${r.time}ms`,
+        `  [${r.sequence}] ${r.host}: ${r.alive ? "OK" : "FAIL"} ${r.time}ms`,
       );
     });
 
-    const aliveCount = results.filter((r) => r.alive).length;
-    const avgTime = Math.round(
-      results.reduce((sum, r) => sum + r.time, 0) / results.length,
-    );
-    console.log(`\nStatistics:`);
-    console.log(`  Success rate: ${aliveCount}/${results.length}`);
-    console.log(`  Average time: ${avgTime}ms`);
+    printStatistics(results);
   } catch (error) {
     console.log("Error:", (error as Error).message);
-  }
-}
-
-async function runMultipleHostsExamples() {
-  console.log("\n=== Multiple Hosts Examples ===\n");
-
-  console.log("--- Testing Multiple Hosts on Port 80 ---");
-  for (const host of testHosts) {
-    try {
-      const results = await manager.ping(host, { timeout: 3000 });
-      console.log(
-        `${host}: ${results[0].alive ? "✓" : "✗"} ${results[0].time}ms`,
-      );
-    } catch {
-      console.log(`${host}: Error occurred`);
-    }
-  }
-
-  console.log("\n--- Testing HTTPS Port (443) ---");
-  for (const host of testHosts.slice(0, 3)) {
-    try {
-      const driver443 = tcpDriver({ port: 443 });
-      const mgr443 = createPingManager({ driver: driver443 });
-      const results = await mgr443.ping(host);
-      console.log(
-        `${host}:443 - ${results[0].alive ? "✓" : "✗"} ${results[0].time}ms`,
-      );
-    } catch {
-      console.log(`${host}:443 - Error`);
-    }
-  }
-}
-
-async function runTimeoutExamples() {
-  console.log("\n=== Timeout Configuration Examples ===\n");
-
-  const timeouts = [1000, 3000, 5000];
-
-  console.log("--- Testing Different Timeouts ---");
-  for (const timeout of timeouts) {
-    try {
-      const results = await manager.ping("example.com", { timeout });
-      console.log(
-        `Timeout ${timeout}ms: ${results[0].alive ? "✓" : "✗"} ${results[0].time}ms`,
-      );
-    } catch {
-      console.log(`Timeout ${timeout}ms: Error`);
-    }
-  }
-}
-
-async function runComparisonExamples() {
-  console.log("\n=== Comparison Examples ===\n");
-
-  console.log("--- Comparing Different Ports on Same Host ---");
-  const host = "google.com";
-  const ports = [80, 443, 8080];
-
-  for (const port of ports) {
-    try {
-      const driver = tcpDriver({ port });
-      const mgr = createPingManager({ driver });
-      const results = await mgr.ping(host);
-      console.log(
-        `  Port ${port}: ${results[0].alive ? "✓" : "✗"} ${results[0].time}ms`,
-      );
-    } catch {
-      console.log(`  Port ${port}: Connection failed`);
-    }
   }
 }
 
 async function runAllExamples() {
   await runBasicExamples();
   await runPortExamples();
-  await runBatchExamples();
-  await runMultipleHostsExamples();
-  await runTimeoutExamples();
-  await runComparisonExamples();
+  await runBatchExample();
 
   console.log("\nTCP driver examples completed!");
 }
