@@ -6,7 +6,7 @@
 import { createPingManager } from "../../../packages/unping/src/ping";
 import hybridDriver from "../../../packages/unping/src/drivers/hybrid";
 import tcpDriver from "../../../packages/unping/src/drivers/tcp";
-import httpDriver from "../../../packages/unping/src/drivers/http";
+import webDriver from "../../../packages/unping/src/drivers/web";
 import dnsDriver from "../../../packages/unping/src/drivers/dns";
 
 console.log("Hybrid Driver Examples\n");
@@ -34,11 +34,11 @@ function printStatistics(results: Array<{ alive: boolean; time: number }>) {
 async function runBasicExamples() {
   console.log("=== Hybrid Driver Fallback Examples ===\n");
 
-  console.log("--- Standard Configuration (TCP → HTTP → DNS) ---");
+  console.log("--- Standard Configuration (TCP → Web → DNS) ---");
   const hybridDriverInstance = hybridDriver({
     drivers: [
       tcpDriver({ port: 443 }), // Try HTTPS first
-      httpDriver({ method: "HEAD" }), // Fallback to HTTP HEAD
+      webDriver({ method: "HEAD" }), // Fallback to HTTP HEAD
       dnsDriver({ type: "A" }), // Fallback to DNS
     ],
   });
@@ -64,7 +64,7 @@ async function runConfigurationExamples() {
     drivers: [
       tcpDriver({ port: 443 }), // Primary - HTTPS
       tcpDriver({ port: 80 }), // Secondary - HTTP
-      httpDriver({ method: "HEAD" }), // Tertiary - HTTP HEAD
+      webDriver({ method: "HEAD" }), // Tertiary - HTTP HEAD
       dnsDriver({ type: "A" }), // Fallback - DNS
     ],
   });
@@ -106,7 +106,7 @@ async function runBatchExample() {
   const hybridDriverInstance = hybridDriver({
     drivers: [
       tcpDriver({ port: 443 }),
-      httpDriver({ method: "HEAD" }),
+      webDriver({ method: "HEAD" }),
       dnsDriver({ type: "A" }),
     ],
   });

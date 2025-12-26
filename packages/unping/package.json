@@ -1,6 +1,6 @@
 {
   "name": "unping",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Unified network ping library with multi-driver support",
   "main": "dist/index.mjs",
   "types": "dist/index.d.ts",

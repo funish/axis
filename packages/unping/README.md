@@ -50,18 +50,18 @@ console.log(results[0]);
 // { host: "google.com", alive: true, time: 5, sequence: 1 }
 ```
 
-### HTTP Driver
+### Web Driver
 
-Application layer health checks using HTTP HEAD/GET requests.
+Application layer health checks using HTTP/HTTPS HEAD/GET requests.
 
 ```typescript
-import httpDriver from "unping/drivers/http";
+import webDriver from "unping/drivers/web";
 
-const http = createPingManager({
-  driver: httpDriver({ method: "HEAD" }),
+const web = createPingManager({
+  driver: webDriver({ method: "HEAD" }),
 });
 
-const results = await http.ping("example.com");
+const results = await web.ping("example.com");
 console.log(`HTTP Status: ${results[0].alive ? "Available" : "Unavailable"}`);
 console.log(`Response Time: ${results[0].time}ms`);
 ```
@@ -112,10 +112,10 @@ Smart detection with automatic fallback between multiple drivers.
 ```typescript
 import hybridDriver from "unping/drivers/hybrid";
 import tcpDriver from "unping/drivers/tcp";
-import httpDriver from "unping/drivers/http";
+import webDriver from "unping/drivers/web";
 import dnsDriver from "unping/drivers/dns";
 
-// Use default driver configuration (TCP → HTTP → DNS)
+// Use default driver configuration (TCP → Web → DNS)
 const hybrid = createPingManager({
   driver: hybridDriver(),
 });
@@ -125,7 +125,7 @@ const customHybrid = createPingManager({
   driver: hybridDriver({
     drivers: [
       tcpDriver({ port: 443 }), // Try HTTPS first
-      httpDriver({ method: "GET" }), // Then HTTP GET
+      webDriver({ method: "GET" }), // Then HTTP GET
       dnsDriver({ type: "AAAA" }), // Then IPv6 DNS
     ],
   }),
@@ -164,8 +164,8 @@ console.log(`Average Time: ${avgTime.toFixed(0)}ms`);
 ### Available Drivers
 
 ```typescript
-// HTTP driver (application layer)
-import httpDriver from "unping/drivers/http";
+// Web driver (application layer - HTTP/HTTPS)
+import webDriver from "unping/drivers/web";
 
 // TCP driver (port reachability)
 import tcpDriver from "unping/drivers/tcp";
@@ -179,13 +179,13 @@ import hybridDriver from "unping/drivers/hybrid";
 
 ### Advanced Configuration
 
-#### HTTP Driver Options
+#### Web Driver Options
 
 ```typescript
-import httpDriver from "unping/drivers/http";
+import webDriver from "unping/drivers/web";
 
-const http = createPingManager({
-  driver: httpDriver({
+const web = createPingManager({
+  driver: webDriver({
     method: "GET", // GET or HEAD (default: HEAD)
     port: 8080, // Custom port
     https: true, // Force HTTPS
@@ -229,13 +229,13 @@ const dns = createPingManager({
 ```typescript
 import hybridDriver from "unping/drivers/hybrid";
 import tcpDriver from "unping/drivers/tcp";
-import httpDriver from "unping/drivers/http";
+import webDriver from "unping/drivers/web";
 
 const hybrid = createPingManager({
   driver: hybridDriver({
     drivers: [
       tcpDriver({ port: 8080 }), // Custom TCP driver
-      httpDriver({ method: "GET" }), // Custom HTTP driver
+      webDriver({ method: "GET" }), // Custom Web driver
       // Add more drivers as needed
     ],
   }),
@@ -307,10 +307,10 @@ interface PingResult {
 
 ### Driver Options
 
-#### HTTPDriverOptions
+#### WebDriverOptions
 
 ```typescript
-interface HTTPDriverOptions {
+interface WebDriverOptions {
   method?: "HEAD" | "GET"; // Request method (default: "HEAD")
   port?: number; // Custom port (default: 80/443)
   https?: boolean; // Force HTTPS (default: auto-detect)
@@ -350,27 +350,27 @@ interface HybridDriverOptions {
 The Hybrid Driver provides intelligent network connectivity detection by trying multiple methods in order:
 
 1. **TCP (First Priority)**: Fastest method, checks port reachability
-2. **HTTP (Second Priority)**: Confirms application layer availability
+2. **Web (Second Priority)**: Confirms application layer availability (HTTP/HTTPS)
 3. **DNS (Last Priority)**: Basic DNS resolution capability as fallback
 
 **Why this order?**
 
 - **TCP First**: Closest to traditional ICMP ping, detects IP layer connectivity quickly (~1-5ms)
-- **HTTP Second**: Validates that the service is actually responding at application level (~100-300ms)
+- **Web Second**: Validates that the service is actually responding at application level (~100-300ms)
 - **DNS Last**: Only checks if domain can be resolved, doesn't guarantee host reachability (~10-20ms)
 
 **Custom Driver Configuration Example:**
 
 ```typescript
 // For web service monitoring - prioritize HTTP
-import httpDriver from "unping/drivers/http";
+import webDriver from "unping/drivers/web";
 import tcpDriver from "unping/drivers/tcp";
 import dnsDriver from "unping/drivers/dns";
 
 const webMonitor = createPingManager({
   driver: hybridDriver({
     drivers: [
-      httpDriver({ method: "HEAD", path: "/health" }),
+      webDriver({ method: "HEAD", path: "/health" }),
       tcpDriver({ port: 80 }),
       dnsDriver(),
     ],
@@ -383,7 +383,7 @@ const quickCheck = createPingManager({
     drivers: [
       tcpDriver({ port: 443 }),
       dnsDriver(),
-      httpDriver({ method: "GET" }),
+      webDriver({ method: "GET" }),
     ],
   }),
 });
@@ -395,7 +395,7 @@ const quickCheck = createPingManager({
 
 ```typescript
 const monitor = createPingManager({
-  driver: httpDriver({ method: "HEAD", path: "/health" }),
+  driver: webDriver({ method: "HEAD", path: "/health" }),
 });
 
 setInterval(async () => {
@@ -427,14 +427,14 @@ for (const port of ports) {
 ```typescript
 import hybridDriver from "unping/drivers/hybrid";
 import tcpDriver from "unping/drivers/tcp";
-import httpDriver from "unping/drivers/http";
+import webDriver from "unping/drivers/web";
 import dnsDriver from "unping/drivers/dns";
 
 const diagnostic = createPingManager({
   driver: hybridDriver({
     drivers: [
       tcpDriver({ port: 80 }),
-      httpDriver({ method: "HEAD" }),
+      webDriver({ method: "HEAD" }),
       dnsDriver(),
     ],
   }),

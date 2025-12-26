@@ -1,12 +1,12 @@
 /**
- * HTTP Driver Examples
- * Demonstrating ping functionality using HTTP requests
+ * Web Driver Examples
+ * Demonstrating ping functionality using HTTP/HTTPS requests
  */
 
 import { createPingManager } from "../../../packages/unping/src/ping";
-import httpDriver from "../../../packages/unping/src/drivers/http";
+import webDriver from "../../../packages/unping/src/drivers/web";
 
-console.log("HTTP Driver Examples\n");
+console.log("Web Driver Examples\n");
 
 const testHosts = ["cloudflare.com", "google.com", "github.com", "example.com"];
 
@@ -32,8 +32,8 @@ async function runBasicExamples() {
   console.log("=== Basic HTTP Ping Examples ===\n");
 
   console.log("--- Multiple HTTP Requests ---");
-  const http = httpDriver({ method: "HEAD" });
-  const manager = createPingManager({ driver: http });
+  const web = webDriver({ method: "HEAD" });
+  const manager = createPingManager({ driver: web });
 
   for (const host of testHosts) {
     try {
@@ -45,6 +45,40 @@ async function runBasicExamples() {
   }
 }
 
+async function runProtocolExamples() {
+  console.log("\n=== HTTP vs HTTPS Protocol Examples ===\n");
+
+  // HTTP example
+  console.log("--- Testing HTTP Protocol ---");
+  const httpDriver = webDriver({ https: false, port: 80 });
+  const httpMgr = createPingManager({ driver: httpDriver });
+
+  for (const host of testHosts.slice(0, 2)) {
+    try {
+      const results = await httpMgr.ping(host);
+      const r = results[0];
+      console.log(`  ${host}: ${r.alive ? "OK" : "FAIL"} ${r.time}ms`);
+    } catch {
+      console.log(`  ${host}: Request failed`);
+    }
+  }
+
+  // HTTPS example
+  console.log("\n--- Testing HTTPS Protocol ---");
+  const httpsDriver = webDriver({ https: true, port: 443 });
+  const httpsMgr = createPingManager({ driver: httpsDriver });
+
+  for (const host of testHosts.slice(0, 2)) {
+    try {
+      const results = await httpsMgr.ping(host);
+      const r = results[0];
+      console.log(`  ${host}: ${r.alive ? "OK" : "FAIL"} ${r.time}ms`);
+    } catch {
+      console.log(`  ${host}: Request failed`);
+    }
+  }
+}
+
 async function runMethodExamples() {
   console.log("\n=== Different HTTP Methods ===\n");
 
@@ -52,8 +86,8 @@ async function runMethodExamples() {
 
   for (const method of methods) {
     console.log(`--- Testing ${method} method ---`);
-    const driver = httpDriver({ method });
-    const mgr = createPingManager({ driver });
+    const driver = webDriver({ method });
+    const mgr = createPingManager({ driver: driver });
 
     for (const host of testHosts.slice(0, 2)) {
       try {
@@ -70,8 +104,8 @@ async function runMethodExamples() {
 async function runBatchExample() {
   console.log("\n=== Batch HTTP Requests ===\n");
 
-  const http = httpDriver({ method: "HEAD" });
-  const manager = createPingManager({ driver: http });
+  const web = webDriver({ method: "HEAD" });
+  const manager = createPingManager({ driver: web });
   const testHost = testHosts[0];
 
   try {
@@ -96,10 +130,11 @@ async function runBatchExample() {
 
 async function runAllExamples() {
   await runBasicExamples();
+  await runProtocolExamples();
   await runMethodExamples();
   await runBatchExample();
 
-  console.log("\nHTTP driver examples completed!");
+  console.log("\nWeb driver examples completed!");
 }
 
 runAllExamples().catch((error) => {

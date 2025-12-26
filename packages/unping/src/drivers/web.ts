@@ -1,12 +1,16 @@
 import { ofetch } from "ofetch";
 import type { Driver, DriverOptions, PingResult, PingOptions } from "../types";
 
-export interface HTTPDriverOptions extends DriverOptions {
+/**
+ * Web Driver Options
+ * Supports both HTTP and HTTPS protocols for host reachability detection
+ */
+export interface WebDriverOptions extends DriverOptions {
   /** Request method (default: HEAD) */
   method?: "HEAD" | "GET";
   /** Custom port (default: 80/443) */
   port?: number;
-  /** Use HTTPS (default: auto detect) */
+  /** Force use HTTPS (default: auto-detect based on port, 443→true, 80→false) */
   https?: boolean;
   /** Request path (default: "/") */
   path?: string;
@@ -15,7 +19,7 @@ export interface HTTPDriverOptions extends DriverOptions {
 }
 
 // Export pingOnce for reuse
-export async function pingOnceHTTP(
+export async function pingOnceWeb(
   host: string,
   protocol: string,
   port: number,
@@ -52,7 +56,29 @@ export async function pingOnceHTTP(
   }
 }
 
-export default function httpDriver(options: HTTPDriverOptions = {}): Driver {
+/**
+ * Creates a Web Driver that supports both HTTP and HTTPS protocols
+ *
+ * @example
+ * // Auto-detect protocol based on port
+ * webDriver()              // HTTP:80
+ * webDriver({ port: 443 }) // HTTPS:443
+ *
+ * @example
+ * // Explicit protocol control
+ * webDriver({ https: true })        // HTTPS:443
+ * webDriver({ https: true, port: 8443 })  // HTTPS:8443
+ * webDriver({ https: false })       // HTTP:80
+ *
+ * @example
+ * // Custom request options
+ * webDriver({
+ *   method: "GET",
+ *   path: "/health",
+ *   headers: { "User-Agent": "Custom-Pinger" }
+ * })
+ */
+export default function webDriver(options: WebDriverOptions = {}): Driver {
   const { method = "HEAD", path = "/", headers = {} } = options;
 
   const ping = async (
@@ -63,12 +89,12 @@ export default function httpDriver(options: HTTPDriverOptions = {}): Driver {
     const timeout = opts?.timeout || 5000;
     const results: PingResult[] = [];
 
-    // Determine protocol
+    // Determine protocol: explicit https option takes priority over port-based detection
     const protocol = (options.https ?? options.port === 443) ? "https" : "http";
     const port = options.port || (protocol === "https" ? 443 : 80);
 
     for (let i = 0; i < count; i++) {
-      const result = await pingOnceHTTP(
+      const result = await pingOnceWeb(
         host,
         protocol,
         port,
@@ -90,7 +116,7 @@ export default function httpDriver(options: HTTPDriverOptions = {}): Driver {
   };
 
   return {
-    name: "http",
+    name: "web",
     options,
     ping,
   };
