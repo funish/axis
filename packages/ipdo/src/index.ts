@@ -17,39 +17,22 @@ export function ipv4ToInt(ip: string): number {
  * Convert IPv6 address to BigInt
  */
 export function ipv6ToBigInt(ip: string): bigint {
+  let groups: string[];
+
   // Handle compressed IPv6 addresses with ::
   if (ip.includes("::")) {
-    const parts = ip.split(":");
-    const compressedIndex = parts.indexOf("");
+    const [headStr, tailStr = ""] = ip.split("::");
+    const head = headStr ? headStr.split(":") : [];
+    const tail = tailStr ? tailStr.split(":") : [];
 
-    // Count how many empty parts after compression
-    let emptyCount = 0;
-    for (let i = compressedIndex; i < parts.length; i++) {
-      if (parts[i] === "") emptyCount++;
-    }
-
-    // Calculate how many zeros to insert
-    const missingZeros = 8 - (parts.length - emptyCount) + 1;
-
-    const expandedParts: string[] = [];
-    for (let i = 0; i < parts.length; i++) {
-      if (parts[i] === "") {
-        if (i === 0 || i === parts.length - 1) {
-          continue; // Skip empty at start/end (leading/trailing ::)
-        }
-        // Insert missing zeros
-        for (let j = 0; j < missingZeros; j++) {
-          expandedParts.push("0");
-        }
-      } else {
-        expandedParts.push(parts[i]);
-      }
-    }
-
-    ip = expandedParts.join(":");
+    // Insert enough zero groups to total 8 groups
+    const missing = 8 - head.length - tail.length;
+    groups = [...head, ...Array(Math.max(missing, 0)).fill("0"), ...tail];
+  } else {
+    groups = ip.split(":");
   }
 
-  return ip.split(":").reduce((int, hex) => {
+  return groups.reduce((int, hex) => {
     return (int << 16n) + BigInt(Number.parseInt(hex || "0", 16));
   }, 0n);
 }
@@ -360,9 +343,11 @@ export function parseCIDR(cidr: string): {
   // Calculate start and end addresses
   if (version === 4) {
     const ipInt = ipv4ToInt(ip);
-    const mask = ~((1 << (32 - prefix)) - 1) >>> 0;
-    const start = ipInt & mask;
-    const end = start + ((1 << (32 - prefix)) - 1);
+    // Use arithmetic to avoid signed 32-bit bitwise overflow for addresses
+    // with the high bit set (>= 128.0.0.0) and to support a /0 prefix.
+    const size = 2 ** (32 - prefix);
+    const start = Math.floor(ipInt / size) * size;
+    const end = start + size - 1;
     return { start, end, prefix, version };
   } else {
     const ipBigInt = ipv6ToBigInt(ip);
