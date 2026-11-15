@@ -1,0 +1,52 @@
+{
+  "name": "unssl",
+  "version": "0.0.1",
+  "description": "Unified TLS certificate lifecycle library with injectable provider drivers",
+  "keywords": [
+    "acme",
+    "certificate",
+    "cloudflare",
+    "https",
+    "letsencrypt",
+    "rfc8555",
+    "security",
+    "tls",
+    "typescript",
+    "zerossl"
+  ],
+  "homepage": "https://github.com/funish/axis#readme",
+  "bugs": {
+    "url": "https://github.com/funish/axis/issues"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Funish",
+    "email": "contact@funish.net",
+    "url": "http://www.funish.net/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/funish/axis.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./drivers/*": {
+      "import": "./dist/drivers/*.mjs",
+      "require": "./dist/drivers/*.cjs",
+      "types": "./dist/drivers/*.d.ts"
+    }
+  },
+  "scripts": {
+    "dev": "unbuild --stub",
+    "build": "unbuild",
+    "prepack": "pnpm build"
+  }
+}
