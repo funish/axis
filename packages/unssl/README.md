@@ -4,7 +4,7 @@ Unified TLS certificate lifecycle orchestration with vendor-specific drivers and
 
 ## Driver contract
 
-Drivers follow the repository's optional-method pattern: implement only the operations the provider actually supports. `createUnsslManager` rejects unsupported calls with a stable `UnsslError` instead of relying on duplicated metadata.
+Drivers follow the repository's optional-method pattern: implement only the operations the provider actually supports. `createSSLManager` rejects unsupported calls with a stable `UnsslError` instead of relying on duplicated metadata.
 
 Supported operations are:
 
@@ -27,10 +27,10 @@ Supported operations are:
 UnSSL does not read private keys or operate DNS itself.
 
 ```typescript
-import { createUnsslManager } from "unssl";
+import { createSSLManager } from "unssl";
 import testingDriver from "unssl/drivers/testing";
 
-const ssl = createUnsslManager({
+const ssl = createSSLManager({
   driver: testingDriver(),
   // keyStorage: optional application-controlled storage adapter
   // dns: optional getRecords/setRecord/upsertRecord/removeRecord adapter
@@ -64,7 +64,7 @@ All failures use `UnsslError` with stable `code` values: `invalid_request`, `una
 
 ## Dispose
 
-Every driver can expose `dispose`, and `createUnsslManager().dispose()` is idempotent. After disposal, lifecycle operations reject with the `disposed` error code.
+Every driver can expose `dispose`, and `createSSLManager().dispose()` is idempotent. After disposal, lifecycle operations reject with the `disposed` error code.
 
 ## License
 

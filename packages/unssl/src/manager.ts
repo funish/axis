@@ -1,7 +1,7 @@
 import { UnsslError } from "./errors";
 import type { Dns01Challenge, UnsslManager, UnsslManagerOptions } from "./types";
 
-export function createUnsslManager(options: UnsslManagerOptions): UnsslManager {
+export function createSSLManager(options: UnsslManagerOptions): UnsslManager {
   const driver = options.driver;
   let disposed = false;
 

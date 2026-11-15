@@ -3,7 +3,7 @@ import { describe, expect, test } from "vite-plus/test";
 import {
   AcmeClient,
   MemoryNonceStore,
-  createUnsslManager,
+  createSSLManager,
   dns01RecordName,
   dns01RecordValue,
   http01Path,
@@ -59,7 +59,7 @@ function createDnsOperations(): DnsRecordOperations & { records: Map<string, Dns
 
 describe("unssl manager", () => {
   test("issues, renews, revokes, and exposes deployment metadata", async () => {
-    const manager = createUnsslManager({ driver: testingDriver() });
+    const manager = createSSLManager({ driver: testingDriver() });
 
     const issued = await manager.issue({
       identifiers: ["example.com", "www.example.com"],
@@ -90,7 +90,7 @@ describe("unssl manager", () => {
   });
 
   test("rejects operations missing from the optional-method contract", async () => {
-    const manager = createUnsslManager({ driver: zeroSslDriver() });
+    const manager = createSSLManager({ driver: zeroSslDriver() });
 
     await expect(
       manager.issue({ identifiers: ["example.com"], csrPem: csr }),
@@ -100,7 +100,7 @@ describe("unssl manager", () => {
 
   test("uses injected DNS operations without coupling UnSSL to a provider", async () => {
     const dns = createDnsOperations();
-    const manager = createUnsslManager({
+    const manager = createSSLManager({
       driver: testingDriver(),
       dns,
     });
@@ -211,7 +211,7 @@ describe("ACME protocol fixtures", () => {
 
   test("letsencrypt driver derives an injected challenge and omits issuance", async () => {
     const driver = letsEncryptDriver();
-    const manager = createUnsslManager({ driver });
+    const manager = createSSLManager({ driver });
     const challenge = await manager.createChallenge({
       type: "http-01",
       identifier: "example.com",
