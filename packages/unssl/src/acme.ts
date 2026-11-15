@@ -1,12 +1,16 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 
 import { classifyHttpError, UnsslError } from "./errors";
 import type {
+  AcmeAuthorization,
+  AcmeChallenge,
   AcmeDirectory,
+  AcmeExternalAccountBinding,
   AcmeJws,
   AcmeOrder,
   AcmeProtectedHeader,
   ChallengeType,
+  CertificateChallenge,
   HttpFetch,
   JwsSigner,
   NonceStore,
@@ -18,46 +22,71 @@ export function encodeBase64Url(value: string | Uint8Array): string {
 }
 
 export function dns01RecordName(identifier: string): string {
-  const domain = identifier.replace(/\.$/, "");
-  return `_acme-challenge.${domain}`;
+  return `_acme-challenge.${identifier.replace(/\.$/, "")}`;
 }
 
 export function dns01RecordValue(keyAuthorization: string): string {
   return createHash("sha256").update(keyAuthorization).digest("base64url");
 }
 
-export function http01Path(keyAuthorization: string): string {
-  const token = keyAuthorization.split(".")[0];
-  return `/.well-known/acme-challenge/${token}`;
+export function pemToBase64UrlDer(pem: string): string {
+  const base64 = pem
+    .replace(/-----BEGIN [^-]+-----/, "")
+    .replace(/-----END [^-]+-----/, "")
+    .replace(/\s+/g, "");
+  if (!base64) {
+    throw new UnsslError("PEM input does not contain DER data", {
+      code: "invalid_request",
+      provider: "acme",
+    });
+  }
+  return Buffer.from(base64, "base64").toString("base64url");
 }
 
-export function challengeResponse(keyAuthorization: string): string {
-  return keyAuthorization;
+export function http01Path(keyAuthorization: string): string {
+  return `/.well-known/acme-challenge/${keyAuthorization.split(".")[0]}`;
 }
 
 export function createChallengeFromKeyAuthorization(
   identifier: string,
   type: ChallengeType,
   keyAuthorization: string,
-): import("./types").CertificateChallenge {
+): CertificateChallenge {
+  const cleanIdentifier = identifier.replace(/\.$/, "");
+  const token = keyAuthorization.split(".")[0];
   if (type === "http-01") {
     return {
       type,
-      identifier,
-      token: keyAuthorization.split(".")[0],
+      identifier: cleanIdentifier,
+      token,
       keyAuthorization,
-      content: challengeResponse(keyAuthorization),
+      content: keyAuthorization,
       path: http01Path(keyAuthorization),
     };
   }
   return {
     type,
-    identifier,
-    token: keyAuthorization.split(".")[0],
+    identifier: cleanIdentifier,
+    token,
     keyAuthorization,
-    recordName: dns01RecordName(identifier),
+    recordName: dns01RecordName(cleanIdentifier),
     recordValue: dns01RecordValue(keyAuthorization),
   };
+}
+
+export function accountJwkThumbprint(accountJwk: Record<string, unknown>): string {
+  const keys = Object.keys(accountJwk)
+    .filter((key) => ["crv", "e", "kty", "n", "x", "y"].includes(key))
+    .sort();
+  if (keys.length === 0) {
+    throw new UnsslError(
+      "accountJwk must contain EC (crv/x/y) or RSA (e/kty/n) fields for ACME challenges",
+      { code: "invalid_request", provider: "acme" },
+    );
+  }
+  const canonical: Record<string, unknown> = {};
+  for (const key of keys) canonical[key] = accountJwk[key];
+  return createHash("sha256").update(JSON.stringify(canonical)).digest("base64url");
 }
 
 export class MemoryNonceStore implements NonceStore {
@@ -79,6 +108,8 @@ export interface AcmeClientOptions {
   nonceStore?: NonceStore;
   accountUrl?: string;
   accountJwk?: Record<string, unknown>;
+  contacts?: string[];
+  externalAccount?: AcmeExternalAccountBinding;
   provider?: string;
 }
 
@@ -91,10 +122,18 @@ const revokeReasonCodes: Record<RevokeReason, number> = {
   cessationOfOperation: 5,
 };
 
+const hmacAlgorithms = {
+  HS256: "sha256",
+  HS384: "sha384",
+  HS512: "sha512",
+} as const;
+
 export class AcmeClient {
   readonly directoryUrl: string;
   readonly provider: string;
   readonly nonceStore: NonceStore;
+  readonly contacts: string[];
+  readonly externalAccount?: AcmeExternalAccountBinding;
   #fetch: HttpFetch;
   #signer?: JwsSigner;
   #accountUrl?: string;
@@ -105,22 +144,28 @@ export class AcmeClient {
     this.directoryUrl = options.directoryUrl;
     this.provider = options.provider || "acme";
     this.nonceStore = options.nonceStore || new MemoryNonceStore();
+    this.contacts = options.contacts || [];
+    this.externalAccount = options.externalAccount;
     this.#fetch = options.fetch || globalThis.fetch;
     this.#signer = options.signer;
     this.#accountUrl = options.accountUrl;
     this.#accountJwk = options.accountJwk;
   }
 
+  get accountUrl(): string | undefined {
+    return this.#accountUrl;
+  }
+
   private async request(
     url: string,
     init?: RequestInit,
-    expectedStatus?: number,
+    expectedStatus?: number[],
   ): Promise<Response> {
     let response: Response;
     try {
       response = await this.#fetch(url, init);
     } catch (error) {
-      throw new UnsslError(`Unable to connect to ACME directory: ${url}`, {
+      throw new UnsslError(`Unable to connect to ACME endpoint: ${url}`, {
         code: "network",
         provider: this.provider,
         cause: error,
@@ -128,12 +173,21 @@ export class AcmeClient {
       });
     }
 
-    if (!response.ok || (expectedStatus && response.status !== expectedStatus)) {
+    if (!response.ok || (expectedStatus && !expectedStatus.includes(response.status))) {
       let details: unknown;
       try {
         details = await response.json();
       } catch {
         details = await response.text();
+      }
+      const problem = details as { type?: string } | undefined;
+      const isBadNonce =
+        typeof problem?.type === "string" &&
+        (problem.type === "urn:ietf:params:acme:error:badNonce" ||
+          problem.type.endsWith(":badNonce"));
+      const replayNonce = response.headers.get("replay-nonce") || undefined;
+      if (isBadNonce) {
+        throw classifyHttpError(response.status, this.provider, details, replayNonce);
       }
       throw classifyHttpError(response.status, this.provider, details);
     }
@@ -141,9 +195,7 @@ export class AcmeClient {
   }
 
   async directory(): Promise<AcmeDirectory> {
-    if (this.#directory) {
-      return this.#directory;
-    }
+    if (this.#directory) return this.#directory;
     const response = await this.request(this.directoryUrl, { method: "GET" });
     const directory = (await response.json()) as AcmeDirectory;
     if (!directory.newNonce || !directory.newAccount || !directory.newOrder) {
@@ -171,10 +223,14 @@ export class AcmeClient {
     return nonce;
   }
 
+  async #postAsGet(url: string): Promise<Response> {
+    return this.signedRequest(url, {}, { expectedStatus: [200] });
+  }
+
   private async signedRequest(
     url: string,
     payload: object,
-    options: { useAccountKey?: boolean; expectedStatus?: number } = {},
+    options: { accountKey?: boolean; expectedStatus?: number[] } = {},
   ): Promise<Response> {
     if (!this.#signer) {
       throw new UnsslError("ACME requests require an injected JWS signer", {
@@ -183,55 +239,120 @@ export class AcmeClient {
       });
     }
 
-    const nonce = (await this.nonceStore.take()) || (await this.newNonce());
-    const header: AcmeProtectedHeader = {
-      alg: this.#signer.alg,
-      nonce,
-      url,
-    };
-    if (options.useAccountKey) {
-      if (!this.#accountJwk) {
-        throw new UnsslError("New account requests require accountJwk", {
-          code: "invalid_request",
-          provider: this.provider,
-        });
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const nonce = (await this.nonceStore.take()) || (await this.newNonce());
+      const header: AcmeProtectedHeader = { alg: this.#signer.alg, nonce, url };
+      if (options.accountKey) {
+        if (!this.#accountJwk) {
+          throw new UnsslError("New ACME account requests require accountJwk", {
+            code: "invalid_request",
+            provider: this.provider,
+          });
+        }
+        header.jwk = this.#accountJwk;
+      } else {
+        await this.account();
+        if (!this.#accountUrl) {
+          throw new UnsslError("ACME account URL is unavailable", {
+            code: "provider_error",
+            provider: this.provider,
+          });
+        }
+        header.kid = this.#accountUrl;
       }
-      header.jwk = this.#accountJwk;
-    } else {
-      if (!this.#accountUrl) {
-        throw new UnsslError("ACME requests require accountUrl", {
-          code: "invalid_request",
-          provider: this.provider,
-        });
+
+      const payloadJson = JSON.stringify(payload);
+      const signature = await this.#signer.sign(header, payloadJson);
+      const jws: AcmeJws = {
+        protected: encodeBase64Url(JSON.stringify(header)),
+        payload: encodeBase64Url(payloadJson),
+        signature: signature.signature,
+      };
+
+      let response: Response;
+      try {
+        response = await this.request(
+          url,
+          {
+            method: "POST",
+            headers: { "content-type": "application/jose+json" },
+            body: JSON.stringify(jws),
+          },
+          options.expectedStatus,
+        );
+      } catch (error) {
+        const nonce = error instanceof UnsslError ? error.nonce : undefined;
+        if (nonce && attempt < 2) {
+          await this.nonceStore.put(nonce);
+          continue;
+        }
+        throw error;
       }
-      header.kid = this.#accountUrl;
+      const nextNonce = response.headers.get("replay-nonce");
+      if (nextNonce) await this.nonceStore.put(nextNonce);
+      return response;
     }
 
-    const payloadJson = JSON.stringify(payload);
-    const signature = await this.#signer.sign(header, payloadJson);
-    const jws: AcmeJws = {
-      protected: encodeBase64Url(JSON.stringify(header)),
-      payload: encodeBase64Url(payloadJson),
-      signature: signature.signature,
+    throw new UnsslError("ACME server repeatedly rejected the replay nonce", {
+      code: "provider_error",
+      provider: this.provider,
+    });
+  }
+
+  async account(): Promise<string> {
+    if (this.#accountUrl) return this.#accountUrl;
+    const directory = await this.directory();
+    if (!this.#signer || !this.#accountJwk) {
+      throw new UnsslError("ACME account registration requires signer and accountJwk", {
+        code: "invalid_request",
+        provider: this.provider,
+      });
+    }
+
+    const payload: Record<string, unknown> = {
+      termsOfServiceAgreed: true,
+      onlyReturnExisting: false,
+      ...(this.contacts.length > 0 && {
+        contact: this.contacts.map((contact) =>
+          contact.startsWith("mailto:") ? contact : `mailto:${contact}`,
+        ),
+      }),
     };
 
-    const response = await this.request(
-      url,
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/jose+json",
-        },
-        body: JSON.stringify(jws),
-      },
-      options.expectedStatus,
-    );
-
-    const nextNonce = response.headers.get("replay-nonce");
-    if (nextNonce) {
-      await this.nonceStore.put(nextNonce);
+    if (this.externalAccount) {
+      const { keyId, hmacKey, alg = "HS256" } = this.externalAccount;
+      const url = directory.newAccount;
+      const protectedHeader = {
+        alg,
+        kid: keyId,
+        url,
+      };
+      const encodedProtected = encodeBase64Url(JSON.stringify(protectedHeader));
+      const encodedPayload = encodeBase64Url(JSON.stringify(this.#accountJwk));
+      const signature = createHmac(hmacAlgorithms[alg], hmacKey)
+        .update(`${encodedProtected}.${encodedPayload}`)
+        .digest("base64url");
+      payload.externalAccountBinding = {
+        protected: encodedProtected,
+        payload: encodedPayload,
+        signature,
+      };
     }
-    return response;
+
+    const response = await this.signedRequest(directory.newAccount, payload, {
+      accountKey: true,
+      expectedStatus: [200, 201],
+    });
+    const location = response.headers.get("location");
+    if (!location) {
+      throw new UnsslError("ACME account response did not include Location", {
+        code: "provider_error",
+        provider: this.provider,
+        status: response.status,
+      });
+    }
+    this.#accountUrl = location;
+    return location;
   }
 
   async newOrder(request: {
@@ -240,19 +361,42 @@ export class AcmeClient {
     notAfter?: string;
   }): Promise<AcmeOrder> {
     const directory = await this.directory();
+    await this.account();
     const response = await this.signedRequest(
       directory.newOrder,
       {
-        identifiers: request.identifiers.map((value) => ({
-          type: "dns",
-          value,
-        })),
+        identifiers: request.identifiers.map((value) => ({ type: "dns", value })),
         ...(request.notBefore && { notBefore: request.notBefore }),
         ...(request.notAfter && { notAfter: request.notAfter }),
       },
-      { expectedStatus: 201 },
+      { expectedStatus: [201] },
     );
-    return (await response.json()) as AcmeOrder;
+    const order = (await response.json()) as AcmeOrder;
+    const location = response.headers.get("location");
+    return { ...order, url: order.url || location || undefined };
+  }
+
+  async getAuthorization(url: string): Promise<AcmeAuthorization> {
+    const response = await this.#postAsGet(url);
+    return (await response.json()) as AcmeAuthorization;
+  }
+
+  async updateChallenge(challengeUrl: string): Promise<AcmeChallenge> {
+    const response = await this.signedRequest(challengeUrl, {}, { expectedStatus: [200] });
+    return (await response.json()) as AcmeChallenge;
+  }
+
+  async refreshOrder(order: AcmeOrder): Promise<AcmeOrder> {
+    if (!order.url) {
+      throw new UnsslError("ACME order has no URL for polling", {
+        code: "invalid_request",
+        provider: this.provider,
+        details: order,
+      });
+    }
+    const response = await this.#postAsGet(order.url);
+    const refreshed = (await response.json()) as AcmeOrder;
+    return { ...refreshed, url: refreshed.url || order.url };
   }
 
   async finalizeOrder(order: AcmeOrder, csrPem: string): Promise<AcmeOrder> {
@@ -265,10 +409,11 @@ export class AcmeClient {
     }
     const response = await this.signedRequest(
       order.finalize,
-      { csr: csrPem },
-      { expectedStatus: 200 },
+      { csr: pemToBase64UrlDer(csrPem) },
+      { expectedStatus: [200] },
     );
-    return (await response.json()) as AcmeOrder;
+    const finalized = (await response.json()) as AcmeOrder;
+    return { ...finalized, url: finalized.url || order.url };
   }
 
   async certificate(order: AcmeOrder): Promise<string> {
@@ -279,7 +424,7 @@ export class AcmeClient {
         details: order,
       });
     }
-    const response = await this.request(order.certificate, { method: "GET" });
+    const response = await this.#postAsGet(order.certificate);
     return response.text();
   }
 
@@ -293,8 +438,11 @@ export class AcmeClient {
     }
     await this.signedRequest(
       directory.revokeCert,
-      { certificate: certificatePem, reason: revokeReasonCodes[reason] },
-      { expectedStatus: 200 },
+      {
+        certificate: pemToBase64UrlDer(certificatePem),
+        reason: revokeReasonCodes[reason],
+      },
+      { expectedStatus: [200] },
     );
   }
 }

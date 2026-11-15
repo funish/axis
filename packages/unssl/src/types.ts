@@ -1,12 +1,16 @@
 export type ChallengeType = "http-01" | "dns-01";
 
-export type CertificateStatus = "pending" | "issued" | "revoked";
+export type CertificateStatus = "pending" | "issued" | "revoked" | "expired";
 
 export interface CertificateRequest {
   identifiers: string[];
   csrPem: string;
   validityDays?: number;
   metadata?: Record<string, string>;
+  /** Protocol-specific issue callbacks and polling controls. */
+  acme?: AcmeIssueOptions;
+  /** Provider validation callbacks for non-ACME REST certificate flows. */
+  validation?: CertificateValidationOptions;
 }
 
 export interface IssuedCertificate {
@@ -46,11 +50,31 @@ export interface Dns01Challenge {
   recordValue: string;
 }
 
-export type CertificateChallenge = Http01Challenge | Dns01Challenge;
+export interface HttpFileValidationChallenge {
+  type: "http-file";
+  identifier: string;
+  url?: string;
+  path: string;
+  content: string;
+}
+
+export interface DnsCnameValidationChallenge {
+  type: "dns-cname";
+  identifier: string;
+  recordName: string;
+  recordValue: string;
+}
+
+export type CertificateChallenge =
+  | Http01Challenge
+  | Dns01Challenge
+  | HttpFileValidationChallenge
+  | DnsCnameValidationChallenge;
 
 export interface ChallengeRequest {
   identifier: string;
   type: ChallengeType;
+  token?: string;
   keyAuthorization?: string;
 }
 
@@ -137,9 +161,35 @@ export interface NonceStore {
   put(nonce: string): void | Promise<void>;
 }
 
+export interface AcmeExternalAccountBinding {
+  keyId: string;
+  /** Base64url-encoded HMAC key supplied by the CA. */
+  hmacKey: string;
+  alg?: "HS256" | "HS384" | "HS512";
+}
+
+export interface AcmeChallenge {
+  type: string;
+  url: string;
+  token: string;
+  status?: string;
+  validated?: string;
+  error?: { type?: string; detail?: string };
+}
+
+export interface AcmeAuthorization {
+  identifier: { type: string; value: string };
+  status?: string;
+  expires?: string;
+  wildcard?: boolean;
+  challenges?: AcmeChallenge[];
+  error?: { type?: string; detail?: string };
+}
+
 export interface AcmeOrder {
   status: string;
   url?: string;
+  expires?: string;
   finalize?: string;
   certificate?: string;
   identifiers: Array<{ type: string; value: string }>;
@@ -166,6 +216,22 @@ export interface DriverOptions {
 }
 
 export type MaybePromise<T> = T | Promise<T>;
+
+export interface CertificateValidationOptions {
+  method?: "http-file" | "dns-cname";
+  onValidation?: (challenges: CertificateChallenge[]) => Promise<void>;
+  onValidationComplete?: (challenges: CertificateChallenge[]) => Promise<void>;
+  pollIntervalMs?: number;
+  timeoutMs?: number;
+}
+
+export interface AcmeIssueOptions {
+  preferredChallenge?: ChallengeType;
+  onChallenge?: (challenge: CertificateChallenge) => Promise<void>;
+  onChallengeComplete?: (challenge: CertificateChallenge) => Promise<void>;
+  pollIntervalMs?: number;
+  timeoutMs?: number;
+}
 
 export interface UnsslDriver<OptionsT = DriverOptions> {
   name: string;

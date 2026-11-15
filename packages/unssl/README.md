@@ -15,16 +15,123 @@ Supported operations are:
 - `createChallenge` for HTTP-01 and DNS-01
 - `dispose`
 
-## Drivers
+## Generic ACME
 
-- **letsencrypt** — RFC 8555 directory parsing, nonce handling, JWS request framing, order creation/finalization/certificate download, and HTTP-01/DNS-01 challenge naming. Driver-level issuance, renewal, and revocation are not implemented; the caller owns account signing and CSR completion.
+`drivers/acme` implements RFC 8555 directory discovery, nonce handling and `badNonce` retry, JWS requests, account creation, External Account Binding (EAB), authorization/challenge polling, order finalization, POST-as-GET certificate download, and revocation. PEM CSR and certificate inputs are converted to the base64url DER representations required by ACME.
+
+```typescript
+import { createSSLManager } from "unssl";
+import acmeDriver from "unssl/drivers/acme";
+
+const ssl = createSSLManager({
+  driver: acmeDriver({
+    provider: "custom-acme",
+    directoryUrl: "https://acme.example.com/directory",
+    accountJwk, // account public JWK; account private keys stay in your signer
+    signer,
+    contacts: ["ops@example.com"],
+    externalAccount: { keyId, hmacKey, alg: "HS256" },
+    preferredChallenge: "dns-01",
+  }),
+  dns,
+});
+
+const certificate = await ssl.issue({
+  identifiers: ["example.com"],
+  csrPem,
+  acme: {
+    preferredChallenge: "dns-01",
+    onChallenge: async (challenge) => {
+      // Serve HTTP-01 content or place DNS-01 through the injected dns adapter.
+    },
+    onChallengeComplete: async (challenge) => {
+      // Remove or deactivate the challenge after authorization becomes valid.
+    },
+  },
+});
+```
+
+The callback receives either an HTTP-01 challenge with `path` and `content`, or a DNS-01 challenge with `recordName` and `recordValue`. `manager.putDns01Challenge` and `manager.removeDns01Challenge` can use an injected `DnsRecordOperations` adapter.
+
+## ACME provider drivers
+
+Provider presets map documented endpoints and account/profile-specific directory URLs to the generic driver:
+
+| Driver                | Endpoint model                                           | Notes                                                      |
+| --------------------- | -------------------------------------------------------- | ---------------------------------------------------------- |
+| `letsencrypt`         | Production or `staging: true` directory                  | No EAB                                                     |
+| `zerossl-acme`        | `https://acme.zerossl.com/v2/DV90`                       | EAB required                                               |
+| `googletrustservices` | Production or staging directory                          | EAB required                                               |
+| `sslcom`              | ECC or RSA directory                                     | EAB normally required                                      |
+| `sectigo`             | `DV` or `OV` directory                                   | EAB required                                               |
+| `digicert`            | Regional `us`, `eu`, or `jp` directory; product override | EAB credentials are generated per certificate type         |
+| `globalsign`          | Atlas ACME directory                                     | ACME/EAB account setup required                            |
+| `certinext`           | Production or sandbox directory                          | EAB required                                               |
+| `actalis`             | Fixed directory                                          | EAB required                                               |
+| `entrust`             | `https://acme.entrust.net/acme2/directory`               | EAB credentials required                                   |
+| `certum`              | `https://acme.certum.pl/directory`                       | EAB credentials required                                   |
+| `harica`              | Account endpoint-specific directory URL                  | Endpoint and EAB created in HARICA CertManager             |
+| `swisssign`           | Horizon tenant/profile directory URL                     | Endpoint format: `https://<host>/acme/<profile>/directory` |
+| `aws-private-ca`      | ACM-created endpoint-specific directory URL              | EAB required                                               |
+
+```typescript
+import digiCertDriver from "unssl/drivers/digicert";
+import haricaDriver from "unssl/drivers/harica";
+import letsEncryptDriver from "unssl/drivers/letsencrypt";
+
+const letsEncrypt = letsEncryptDriver({ staging: true });
+const digiCert = digiCertDriver({ region: "eu", externalAccount });
+const harica = haricaDriver({
+  directoryUrl: haricaDirectoryUrlFromCertManager,
+  externalAccount,
+});
+```
+
+Some vendors issue a different directory URL per account, credential, product, tenant, or profile. Use the exact URL shown by the vendor console; a generic vendor name does not imply a single public endpoint.
+
+## Provider REST drivers
+
+- **zerossl** — ZeroSSL REST API creates a CSR-based order, returns HTTP-file or DNS-CNAME validation data, invokes validation callbacks, verifies, polls, downloads, inspects, and revokes.
+- **cloudflare** — Cloudflare Origin CA creates from a CSR and hostnames, selects an allowed validity, inspects metadata, and revokes. This is an origin CA driver, not a public-trust CA driver.
+
+```typescript
+import cloudflareOriginCaDriver from "unssl/drivers/cloudflare";
+import zeroSslDriver from "unssl/drivers/zerossl";
+
+const zerossl = zeroSslDriver({ apiKey });
+const origin = cloudflareOriginCaDriver({
+  apiToken,
+  requestType: "origin-rsa",
+  requestedValidity: 90,
+});
+```
+
+ZeroSSL validation callbacks receive the challenge objects before the driver asks the provider to verify:
+
+```typescript
+await ssl.issue({
+  identifiers: ["example.com"],
+  csrPem,
+  validityDays: 90,
+  validation: {
+    method: "http-file",
+    onValidation: async (challenges) => {
+      // Publish each challenge.path / challenge.content or CNAME record.
+    },
+    onValidationComplete: async (challenges) => {
+      // Clean up validation artifacts.
+    },
+  },
+});
+```
+
 - **testing** — deterministic in-memory issue/renew/revoke/deployment/challenge driver for tests.
-- **zerossl** — provider binding is not enabled.
-- **cloudflare** — Cloudflare SSL and origin certificate provider binding is not enabled.
+
+BuyPass is intentionally absent: its SSL/ACME service was discontinued.
 
 ## Dependency injection
 
-UnSSL does not read private keys or operate DNS itself.
+UnSSL does not read private keys or operate DNS itself. `JwsSigner`, `NonceStore`, `KeyStorage`, `HttpFetch`, polling, and DNS adapters are supplied by the application.
 
 ```typescript
 import { createSSLManager } from "unssl";
@@ -54,9 +161,9 @@ interface DnsRecordOperations {
 
 The manager can put and remove the derived TXT value through that interface. Propagation waiting is deliberately left to the consumer or a DNS-aware driver, because resolver strategy is deployment policy.
 
-## ACME JWS
+## Live fixtures
 
-RFC 8555 requests require an injected `JwsSigner`; UnSSL never loads or serializes an account private key. Real Let's Encrypt calls are not made unless the consumer supplies `fetch` and signer dependencies. Integration tests use directory and response fixtures.
+Protocol fixtures do not touch the network. Set `UNSSL_TEST_LIVE_ACME=1` to run the public directory discovery check; other live issuance paths require provider accounts and are not enabled by default.
 
 ## Errors
 

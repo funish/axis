@@ -17,6 +17,7 @@ export interface UnsslErrorOptions {
   retryable?: boolean;
   details?: unknown;
   cause?: unknown;
+  nonce?: string;
 }
 
 export class UnsslError extends Error {
@@ -25,6 +26,7 @@ export class UnsslError extends Error {
   readonly status?: number;
   readonly retryable: boolean;
   readonly details?: unknown;
+  readonly nonce?: string;
 
   constructor(message: string, options: UnsslErrorOptions) {
     super(message, { cause: options.cause });
@@ -35,6 +37,7 @@ export class UnsslError extends Error {
     this.retryable =
       options.retryable ?? (options.code === "network" || options.code === "rate_limited");
     this.details = options.details;
+    this.nonce = options.nonce;
   }
 }
 
@@ -45,7 +48,12 @@ export function notSupported(operation: string, provider?: string): UnsslError {
   });
 }
 
-export function classifyHttpError(status: number, provider: string, details?: unknown): UnsslError {
+export function classifyHttpError(
+  status: number,
+  provider: string,
+  details?: unknown,
+  nonce?: string,
+): UnsslError {
   const code =
     status === 400
       ? "invalid_request"
@@ -57,11 +65,13 @@ export function classifyHttpError(status: number, provider: string, details?: un
             ? "rate_limited"
             : "provider_error";
 
-  return new UnsslError(`Provider request failed with status ${status}`, {
+  const problem = details as { detail?: string; type?: string } | undefined;
+  return new UnsslError(problem?.detail || `Provider request failed with status ${status}`, {
     code,
     provider,
     status,
     details,
+    nonce,
     retryable: status === 429 || status >= 500,
   });
 }
