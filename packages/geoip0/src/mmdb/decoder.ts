@@ -68,9 +68,15 @@ export class MMDBDecoder {
   /**
    * Decode pointer (matches original mmdb-lib)
    */
+  private requireBytes(offset: number, length: number, description: string): void {
+    if (offset < 0 || length < 0 || offset + length > this.data.length) {
+      throw new Error(`Truncated or out-of-bounds ${description} at offset ${offset}`);
+    }
+  }
   private decodePointer(ctrlByte: number, offset: number): Cursor {
     // Pointers use the last five bits in the control byte to calculate the pointer value.
     const pointerSize = (ctrlByte >> 3) & 3;
+    this.requireBytes(offset, pointerSize + 1, "MMDB pointer");
     const pointer = this.baseOffset + pointerValueOffset[pointerSize];
     let packed = 0;
 
@@ -110,14 +116,14 @@ export class MMDBDecoder {
 
       case MMDBRecordType.Uint16:
         if (size === 0) return cursor(0, offset);
-        if (size === 1) return cursor(this.data[offset], offset + 1);
+        if (size === 1) return cursor(this.readUintBE(offset, 1), offset + 1);
         if (size === 2) return cursor(this.readUint16BE(offset), offset + 2);
         throw new Error("Invalid Uint16 size");
 
       case MMDBRecordType.Uint32:
         if (size === 0) return cursor(0, offset);
         if (size <= 4) {
-          if (size === 1) return cursor(this.data[offset], offset + 1);
+          if (size === 1) return cursor(this.readUintBE(offset, 1), offset + 1);
           if (size === 2) return cursor(this.readUint16BE(offset), offset + 2);
           if (size === 3) return cursor(this.readUintBE(offset, 3), offset + 3);
           if (size === 4) return cursor(this.readUint32BE(offset), offset + 4);
@@ -205,6 +211,7 @@ export class MMDBDecoder {
    * Decode UTF-8 string (matches original mmdb-lib)
    */
   private decodeUtf8String(offset: number, size: number): string {
+    this.requireBytes(offset, size, "MMDB string");
     if (size === 0) return "";
     const bytes = this.data.subarray(offset, offset + size);
     return new TextDecoder("utf-8").decode(bytes);
@@ -214,6 +221,7 @@ export class MMDBDecoder {
    * Decode double (matches original mmdb-lib)
    */
   private decodeDouble(offset: number): number {
+    this.requireBytes(offset, 8, "MMDB double");
     const view = new DataView(this.data.buffer, this.data.byteOffset + offset, 8);
     return view.getFloat64(0, false); // big-endian
   }
@@ -222,6 +230,7 @@ export class MMDBDecoder {
    * Decode float (matches original mmdb-lib)
    */
   private decodeFloat(offset: number): number {
+    this.requireBytes(offset, 4, "MMDB float");
     const view = new DataView(this.data.buffer, this.data.byteOffset + offset, 4);
     return view.getFloat32(0, false); // big-endian
   }
@@ -230,6 +239,7 @@ export class MMDBDecoder {
    * Decode bytes (matches original mmdb-lib)
    */
   private decodeBytes(offset: number, size: number): Uint8Array {
+    this.requireBytes(offset, size, "MMDB bytes");
     return this.data.subarray(offset, offset + size);
   }
 
@@ -237,6 +247,7 @@ export class MMDBDecoder {
    * Decode signed 32-bit integer (matches original mmdb-lib)
    */
   private decodeInt32BE(offset: number): number {
+    this.requireBytes(offset, 4, "MMDB Int32");
     const view = new DataView(this.data.buffer, this.data.byteOffset + offset, 4);
     return view.getInt32(0, false); // big-endian
   }
@@ -267,6 +278,7 @@ export class MMDBDecoder {
    * Read unsigned 16-bit big-endian
    */
   private readUint16BE(offset: number): number {
+    this.requireBytes(offset, 2, "MMDB Uint16");
     return (this.data[offset] << 8) | this.data[offset + 1];
   }
 
@@ -274,6 +286,7 @@ export class MMDBDecoder {
    * Read unsigned 24-bit big-endian
    */
   private readUintBE(offset: number, size: number): number {
+    this.requireBytes(offset, size, "MMDB unsigned integer");
     let result = 0;
     for (let i = 0; i < size; i++) {
       result = (result << 8) | this.data[offset + i];
@@ -285,6 +298,7 @@ export class MMDBDecoder {
    * Read unsigned 32-bit big-endian
    */
   private readUint32BE(offset: number): number {
+    this.requireBytes(offset, 4, "MMDB Uint32");
     return (
       (this.data[offset] << 24) |
       (this.data[offset + 1] << 16) |
@@ -297,6 +311,7 @@ export class MMDBDecoder {
    * Read signed 32-bit big-endian
    */
   private readInt32BE(offset: number): number {
+    this.requireBytes(offset, 4, "MMDB Int32");
     const view = new DataView(this.data.buffer, this.data.byteOffset + offset, 4);
     return view.getInt32(0, false); // big-endian
   }

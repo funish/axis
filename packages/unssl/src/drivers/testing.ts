@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { UnsslError } from "../errors";
+import { SSLError } from "../errors";
 import type {
   CertificateChallenge,
   CertificateRequest,
@@ -9,7 +9,7 @@ import type {
   DriverOptions,
   IssuedCertificate,
   RevokeRequest,
-  UnsslDriver,
+  SSLDriver,
 } from "../types";
 
 export interface TestingDriverOptions extends DriverOptions {
@@ -19,7 +19,7 @@ export interface TestingDriverOptions extends DriverOptions {
 
 export default function testingDriver(
   options: TestingDriverOptions = {},
-): UnsslDriver<TestingDriverOptions> {
+): SSLDriver<TestingDriverOptions> {
   const certificates = new Map<string, IssuedCertificate>();
   let sequence = 0;
   let disposed = false;
@@ -31,7 +31,7 @@ export default function testingDriver(
 
   function assertAvailable(): void {
     if (disposed) {
-      throw new UnsslError("Testing certificate driver has been disposed", {
+      throw new SSLError("Testing certificate driver has been disposed", {
         code: "disposed",
         provider: "testing",
       });
@@ -41,13 +41,13 @@ export default function testingDriver(
   function createCertificate(request: CertificateRequest, renewalOf?: string): IssuedCertificate {
     assertAvailable();
     if (!request.identifiers.length) {
-      throw new UnsslError("At least one DNS identifier is required", {
+      throw new SSLError("At least one DNS identifier is required", {
         code: "invalid_request",
         provider: "testing",
       });
     }
     if (!request.csrPem.includes("BEGIN CERTIFICATE REQUEST")) {
-      throw new UnsslError("A PEM-encoded CSR is required", {
+      throw new SSLError("A PEM-encoded CSR is required", {
         code: "invalid_request",
         provider: "testing",
       });
@@ -75,7 +75,7 @@ export default function testingDriver(
     return structuredClone(issued);
   }
 
-  const driver: UnsslDriver<TestingDriverOptions> = {
+  const driver: SSLDriver<TestingDriverOptions> = {
     name: "testing",
     options,
 
@@ -86,7 +86,7 @@ export default function testingDriver(
     async renew(certificate, request) {
       const existing = certificates.get(certificate.id);
       if (!existing) {
-        throw new UnsslError(`Certificate not found: ${certificate.id}`, {
+        throw new SSLError(`Certificate not found: ${certificate.id}`, {
           code: "not_found",
           provider: "testing",
         });
@@ -105,14 +105,14 @@ export default function testingDriver(
     async revoke(request: RevokeRequest) {
       const certificateId = request.certificateId;
       if (!certificateId) {
-        throw new UnsslError("certificateId is required by the testing driver", {
+        throw new SSLError("certificateId is required by the testing driver", {
           code: "invalid_request",
           provider: "testing",
         });
       }
       const certificate = certificates.get(certificateId);
       if (!certificate) {
-        throw new UnsslError(`Certificate not found: ${certificateId}`, {
+        throw new SSLError(`Certificate not found: ${certificateId}`, {
           code: "not_found",
           provider: "testing",
         });
@@ -123,7 +123,7 @@ export default function testingDriver(
     async getDeploymentMetadata(certificateId): Promise<DeploymentMetadata> {
       const certificate = certificates.get(certificateId);
       if (!certificate) {
-        throw new UnsslError(`Certificate not found: ${certificateId}`, {
+        throw new SSLError(`Certificate not found: ${certificateId}`, {
           code: "not_found",
           provider: "testing",
         });

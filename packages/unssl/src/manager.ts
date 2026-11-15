@@ -1,13 +1,13 @@
-import { UnsslError } from "./errors";
-import type { Dns01Challenge, UnsslManager, UnsslManagerOptions } from "./types";
+import { SSLError } from "./errors";
+import type { Dns01Challenge, SSLManager, SSLManagerOptions } from "./types";
 
-export function createSSLManager(options: UnsslManagerOptions): UnsslManager {
+export function createSSLManager(options: SSLManagerOptions): SSLManager {
   const driver = options.driver;
   let disposed = false;
 
   function assertAvailable(): void {
     if (disposed) {
-      throw new UnsslError("UnSSL manager has been disposed", {
+      throw new SSLError("SSL manager has been disposed", {
         code: "disposed",
         provider: driver.name,
       });
@@ -19,7 +19,7 @@ export function createSSLManager(options: UnsslManagerOptions): UnsslManager {
     action: string,
   ): T {
     if (!method) {
-      throw new UnsslError(`Driver does not support ${action}`, {
+      throw new SSLError(`Driver does not support ${action}`, {
         code: "not_supported",
         provider: driver.name,
       });
@@ -27,7 +27,7 @@ export function createSSLManager(options: UnsslManagerOptions): UnsslManager {
     return method;
   }
 
-  const manager: UnsslManager = {
+  const manager: SSLManager = {
     driver,
 
     async issue(request) {
@@ -58,7 +58,7 @@ export function createSSLManager(options: UnsslManagerOptions): UnsslManager {
     async putDns01Challenge(challenge: Dns01Challenge) {
       assertAvailable();
       if (!options.dns) {
-        throw new UnsslError("DNS-01 challenge placement requires injected DNS operations", {
+        throw new SSLError("DNS-01 challenge placement requires injected DNS operations", {
           code: "invalid_request",
           provider: driver.name,
         });
@@ -80,7 +80,7 @@ export function createSSLManager(options: UnsslManagerOptions): UnsslManager {
     async removeDns01Challenge(challenge: Dns01Challenge) {
       assertAvailable();
       if (!options.dns) {
-        throw new UnsslError("DNS-01 challenge cleanup requires injected DNS operations", {
+        throw new SSLError("DNS-01 challenge cleanup requires injected DNS operations", {
           code: "invalid_request",
           provider: driver.name,
         });

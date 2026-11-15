@@ -1,30 +1,39 @@
 import { ofetch } from "ofetch";
 
-import type { Driver, GeoLocation, QueryOptions, DriverOptions } from "..";
+import type {
+  BatchQueryOptions,
+  Driver,
+  DriverCapabilities,
+  DriverOptions,
+  GeoLocation,
+  QueryOptions,
+} from "..";
+import { mapBatches, resolveBatchOptions } from "../batch";
+import { createProviderError } from "../errors";
+import { normalizeGeoLocation } from "../normalize";
 
 // IP-API.com response interface
 export interface IpApiComResponse {
-  query: string; // IP address
-  status: "success" | "fail";
-  country?: string; // Country name
-  countryCode?: string; // Two-letter country code
-  region?: string; // Region/Province name
-  regionName?: string; // Region/Province code
-  city?: string; // City name
-  zip?: string; // ZIP code
-  lat?: number; // Latitude
-  lon?: number; // Longitude
-  timezone?: string; // Timezone
-  isp?: string; // ISP provider
-  org?: string; // Organization
-  as?: string; // AS number and organization
-  mobile?: boolean; // Mobile connection
-  proxy?: boolean; // Proxy/VPN
-  hosting?: boolean; // Hosting/Botnet
-  message?: string; // Error message when status is "fail"
+  query?: string;
+  status?: "success" | "fail";
+  country?: string;
+  countryCode?: string;
+  region?: string;
+  regionName?: string;
+  city?: string;
+  zip?: string;
+  lat?: number;
+  lon?: number;
+  timezone?: string;
+  isp?: string;
+  org?: string;
+  as?: string;
+  mobile?: boolean;
+  proxy?: boolean;
+  hosting?: boolean;
+  message?: string;
 }
 
-// IP-API.com Batch response interface
 export type IpApiComBatchResponse = IpApiComResponse[];
 
 // IP-API.com Driver options
@@ -37,215 +46,122 @@ export interface IpApiComOptions extends DriverOptions {
    * Response language
    */
   lang?: "en" | "de" | "es" | "pt-BR" | "fr" | "ja" | "zh-CN" | "ru";
+  batchSize?: number;
+  concurrency?: number;
 }
 
-// Default fields to request - comprehensive but not excessive
 const DEFAULT_FIELDS =
-  "status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,mobile,proxy,hosting,query";
+  "status,message,country,countryCode,region,regionName,city,lat,lon,timezone,isp,org,as,proxy,query";
+const SOURCE = "ip-api.com";
+
+function convert(data: IpApiComResponse, queryOptions?: QueryOptions): GeoLocation | null {
+  return normalizeGeoLocation(
+    {
+      ip: data.query || "",
+      source: SOURCE,
+      country: data.country,
+      countryCode: data.countryCode,
+      region: data.regionName,
+      regionCode: data.region,
+      city: data.city,
+      latitude: data.lat,
+      longitude: data.lon,
+      isp: data.isp,
+      org: data.org,
+      asn: data.as?.split(" ")[0],
+      timezone: data.timezone,
+      isProxy: data.proxy,
+    },
+    queryOptions,
+  );
+}
 
 export default function ipApiComDriver(options: IpApiComOptions = {}): Driver<IpApiComOptions> {
-  const lookup = async (ip: string, _queryOptions?: QueryOptions): Promise<GeoLocation> => {
+  const lookup = async (ip: string, queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
       const fields = options.fields || DEFAULT_FIELDS;
       const lang = options.lang || "en";
-
       const url = `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=${encodeURIComponent(fields)}&lang=${encodeURIComponent(lang)}`;
-
-      const data: IpApiComResponse = await ofetch(url);
+      const data = await ofetch<IpApiComResponse>(url);
 
       if (data.status !== "success" || !data.query) {
-        return {
-          ip,
-          country: "",
-          countryCode: "",
-          region: "",
-          regionCode: "",
-          city: "",
-          latitude: 0,
-          longitude: 0,
-          isp: "",
-          org: "",
-          asn: "",
-          timezone: "",
-          source: "ip-api.com",
-          accuracyRadius: "",
-          isProxy: false,
-        };
+        throw createProviderError(SOURCE, data.message || "Provider lookup failed");
       }
 
-      return {
-        ip: data.query,
-        country: data.country || "",
-        countryCode: data.countryCode || "",
-        region: data.regionName || data.region || "",
-        regionCode: data.region && data.countryCode ? `${data.countryCode}-${data.region}` : "",
-        city: data.city || "",
-        latitude: data.lat || 0,
-        longitude: data.lon || 0,
-        isp: data.isp || "",
-        org: data.org || "",
-        asn: data.as?.split(" ")[0] || data.as || "",
-        timezone: data.timezone || "",
-        isProxy: data.proxy || data.hosting || false, // Include hosting as proxy-like behavior
-        source: "ip-api.com",
-        accuracyRadius: "",
-      };
-    } catch {
-      return {
-        ip: "",
-        country: "",
-        countryCode: "",
-        region: "",
-        regionCode: "",
-        city: "",
-        latitude: 0,
-        longitude: 0,
-        isp: "",
-        org: "",
-        asn: "",
-        timezone: "",
-        source: "ip-api.com",
-        accuracyRadius: "",
-        isProxy: false,
-      };
+      return convert(data, queryOptions);
+    } catch (error) {
+      throw createProviderError(SOURCE, error);
     }
   };
 
-  const current = async (_queryOptions?: QueryOptions): Promise<GeoLocation> => {
+  const current = async (queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
-      let url = "http://ip-api.com/json";
-
-      // IP-API.com doesn't have separate IPv4/IPv6 endpoints
-      // It automatically detects the client IP version
-      // queryOptions.version is ignored as IP-API.com handles this automatically
       const fields = options.fields || DEFAULT_FIELDS;
       const lang = options.lang || "en";
-      url += `?fields=${encodeURIComponent(fields)}&lang=${encodeURIComponent(lang)}`;
-
-      const data: IpApiComResponse = await ofetch(url);
+      const url = `http://ip-api.com/json?fields=${encodeURIComponent(fields)}&lang=${encodeURIComponent(lang)}`;
+      const data = await ofetch<IpApiComResponse>(url);
 
       if (data.status !== "success" || !data.query) {
-        return {
-          ip: "",
-          country: "",
-          countryCode: "",
-          region: "",
-          regionCode: "",
-          city: "",
-          latitude: 0,
-          longitude: 0,
-          isp: "",
-          org: "",
-          asn: "",
-          timezone: "",
-          source: "ip-api.com",
-          accuracyRadius: "",
-          isProxy: false,
-        };
+        throw createProviderError(SOURCE, data.message || "Provider lookup failed");
       }
 
-      return {
-        ip: data.query,
-        country: data.country || "",
-        countryCode: data.countryCode || "",
-        region: data.regionName || data.region || "",
-        regionCode: data.region && data.countryCode ? `${data.countryCode}-${data.region}` : "",
-        city: data.city || "",
-        latitude: data.lat || 0,
-        longitude: data.lon || 0,
-        isp: data.isp || "",
-        org: data.org || "",
-        asn: data.as?.split(" ")[0] || data.as || "",
-        timezone: data.timezone || "",
-        isProxy: data.proxy || data.hosting || false,
-        source: "ip-api.com",
-        accuracyRadius: "",
-      };
-    } catch {
-      return {
-        ip: "",
-        country: "",
-        countryCode: "",
-        region: "",
-        regionCode: "",
-        city: "",
-        latitude: 0,
-        longitude: 0,
-        isp: "",
-        org: "",
-        asn: "",
-        timezone: "",
-        source: "ip-api.com",
-        accuracyRadius: "",
-        isProxy: false,
-      };
+      return convert(data, queryOptions);
+    } catch (error) {
+      throw createProviderError(SOURCE, error);
     }
   };
 
   const batchLookup = async (
     ips: string[],
-    _queryOptions?: QueryOptions,
+    queryOptions?: BatchQueryOptions,
   ): Promise<GeoLocation[]> => {
-    try {
-      // IP-API.com batch endpoint has a 100 IP limit per request
-      if (ips.length > 100) {
-        console.warn("IP-API.com batch request limited to 100 IPs per request");
-        // For simplicity, we'll only process the first 100 IPs
-        // In a production environment, you might want to split into multiple requests
-        ips = ips.slice(0, 100);
+    const batchOptions = resolveBatchOptions(queryOptions, {
+      batchSize: options.batchSize ?? 100,
+      concurrency: options.concurrency ?? 1,
+    });
+    const lang = options.lang || "en";
+    const fields = options.fields || DEFAULT_FIELDS;
+
+    const batches = await mapBatches(ips, batchOptions, async (batch) => {
+      try {
+        const response = await ofetch<IpApiComBatchResponse>(
+          `http://ip-api.com/batch?lang=${encodeURIComponent(lang)}&fields=${encodeURIComponent(fields)}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(batch),
+          },
+        );
+
+        return response
+          .filter((data) => data.status === "success" && Boolean(data.query))
+          .map((data) => convert(data, queryOptions))
+          .filter((result): result is GeoLocation => result !== null);
+      } catch (error) {
+        throw createProviderError(SOURCE, error);
       }
+    });
 
-      const lang = options.lang || "en";
-      let url = `http://ip-api.com/batch?lang=${encodeURIComponent(lang)}`;
+    return batches.flat();
+  };
 
-      if (options.fields) {
-        url += `&fields=${encodeURIComponent(options.fields)}`;
-      }
-
-      const response: IpApiComBatchResponse = await ofetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(ips),
-      });
-
-      // Convert batch API response to GeoLocation array
-      const results: GeoLocation[] = [];
-      for (const data of response) {
-        if (data && data.status === "success" && data.query) {
-          results.push({
-            ip: data.query,
-            country: data.country || "",
-            countryCode: data.countryCode || "",
-            region: data.regionName || data.region || "",
-            regionCode: data.region && data.countryCode ? `${data.countryCode}-${data.region}` : "",
-            city: data.city || "",
-            latitude: data.lat || 0,
-            longitude: data.lon || 0,
-            isp: data.isp || "",
-            org: data.org || "",
-            asn: data.as?.split(" ")[0] || data.as || "",
-            timezone: data.timezone || "",
-            source: "ip-api.com",
-            accuracyRadius: "",
-            isProxy: data.proxy || data.hosting || false,
-          });
-        }
-        // Failed lookups are silently ignored, similar to other drivers
-      }
-
-      return results;
-    } catch {
-      return [];
-    }
+  const capabilities: DriverCapabilities = {
+    lookup: true,
+    current: true,
+    batchLookup: true,
+    nativeBatch: true,
+    remote: true,
+    proxyDetection: true,
   };
 
   return {
-    name: "ip-api.com",
+    name: SOURCE,
     options,
+    capabilities,
     lookup,
-    batchLookup,
     current,
+    batchLookup,
   };
 }

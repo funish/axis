@@ -5,109 +5,94 @@
 ![npm license](https://img.shields.io/npm/l/unping)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](https://www.contributor-covenant.org/version/2/1/code_of_conduct/)
 
-> Unified network connectivity detection library with multi-driver support
+> Unified network ping/probe library with multi-driver support
 
 ## Features
 
-- 🌐 **Multi-Driver Support**: HTTP, TCP, DNS, and Hybrid drivers for different scenarios
+- 🌐 **Multi-Driver Probes**: DNS, ICMP, TCP, TLS, Web, and Hybrid drivers
 - 🔄 **Driver Pattern**: Consistent API design across different detection methods
-- 📝 **TypeScript First**: Full type safety with comprehensive ping result types
-- 🚀 **High Performance**: Built on modern networking APIs with minimal dependencies
+- 📝 **TypeScript First**: Full type safety for probe options and rich results
+- 🚀 **Native Timing**: ICMP, TCP, TLS handshake, and HTTP request observations
 - ⚡ **Smart Fallback**: Hybrid driver automatically tries multiple detection methods
-- 🔧 **Flexible Configuration**: Support for batch pings, timeouts, intervals, and custom ports
-- 📊 **Rich Results**: Detailed response data including timing and sequence numbers
-- 🛡️ **Error Resilient**: Graceful handling of network failures and timeouts
+- 🔧 **Flexible Configuration**: Shared probe loop handling for count, interval, timeout, and size
+- 📊 **Rich Results**: Timing, sequence, status, error phase, and driver-specific metadata
+- 🛡️ **Error Resilient**: Stable result fields plus categorized probe failures
 
 ## Installation
 
 ```bash
-# Install with npm
 $ npm install unping
-
-# Install with yarn
-$ yarn add unping
-
-# Install with pnpm
-$ pnpm add unping
+# yarn add unping
+# pnpm add unping
 ```
 
 ## Usage
-
-### Basic Setup
 
 ```typescript
 import { createPingManager } from "unping";
 import tcpDriver from "unping/drivers/tcp";
 
-// Create ping manager with TCP driver
 const ping = createPingManager({
-  driver: tcpDriver({ port: 80 }),
-});
-
-// Ping a host
-const results = await ping.ping("google.com");
-console.log(results[0]);
-// { host: "google.com", alive: true, time: 5, sequence: 1 }
-```
-
-### Web Driver
-
-Application layer health checks using HTTP/HTTPS HEAD/GET requests.
-
-```typescript
-import webDriver from "unping/drivers/web";
-
-const web = createPingManager({
-  driver: webDriver({ method: "HEAD" }),
-});
-
-const results = await web.ping("example.com");
-console.log(`HTTP Status: ${results[0].alive ? "Available" : "Unavailable"}`);
-console.log(`Response Time: ${results[0].time}ms`);
-```
-
-### TCP Driver
-
-Port reachability detection using TCP connections.
-
-```typescript
-import tcpDriver from "unping/drivers/tcp";
-
-// Check default HTTP port
-const tcp80 = createPingManager({
-  driver: tcpDriver({ port: 80 }),
-});
-
-// Check HTTPS port
-const tcp443 = createPingManager({
   driver: tcpDriver({ port: 443 }),
 });
 
-const results = await tcp80.ping("example.com");
-console.log(`Port 80: ${results[0].alive ? "Open" : "Closed"}`);
+const results = await ping.ping("example.com", {
+  count: 3,
+  interval: 500,
+  timeout: 3000,
+});
+
+console.log(results[0]);
+// Stable fields: { host, alive, time, sequence }
 ```
 
-### DNS Driver
+The manager always resolves with one result per probe. `count: 0` resolves with an empty array. The interval, including an explicit `interval: 0`, is applied by a shared probe loop; network handles and timers are owned by each driver.
 
-DNS resolution capability detection.
+## Result contract
+
+`host`, `alive`, and `time` are stable. Drivers add optional fields when the transport can observe them:
+
+| Field                      | Meaning                                                                                      |
+| -------------------------- | -------------------------------------------------------------------------------------------- |
+| `kind`                     | Built-in probe kind: `dns`, `hybrid`, `icmp`, `tcp`, `tls`, or `web`                         |
+| `method`                   | Transport/request method, such as `native-ping`, `tls`, or `HEAD`                            |
+| `sequence`                 | One-based probe sequence                                                                     |
+| `timestamp`                | Result creation time in epoch milliseconds                                                   |
+| `statusCode`               | Final HTTP status code (web)                                                                 |
+| `sent`, `received`, `loss` | ICMP probe/reply counters; `loss` is a packet count                                          |
+| `ttl`                      | ICMP time-to-live                                                                            |
+| `error.code`               | OS, Node.js, or driver-specific code                                                         |
+| `error.category`           | `dns`, `certificate`, `http`, `network`, `timeout`, `command`, `configuration`, or `unknown` |
+| `error.phase`              | `dns`, `connect`, `handshake`, `request`, `command`, `timeout`, or `unknown`                 |
+| `metadata`                 | Driver-specific records, timings, command details, or hybrid attempts                        |
+
+Do not assume optional fields are present for every driver. A live result means the selected transport completed successfully; it does not imply every application endpoint is healthy.
+
+## Driver matrix
+
+| Driver   | Default target            | Success semantics                                                        | Additional observations                                           |
+| -------- | ------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `dns`    | Operating-system resolver | One or more records resolve                                              | Records, record type, resolver timeout, DNS error code            |
+| `hybrid` | TCP 80 → HTTPS 443 → DNS  | First live result wins; falls back after target-down and driver failures | Selected driver, ordered attempts, fallback drivers               |
+| `icmp`   | OS `ping` binary          | Exit status 0 and a reply are alive                                      | Sent/received/lost packets, TTL, native timing, command arguments |
+| `tcp`    | Port 80                   | TCP connection is established                                            | Connect timing, port, TCP error code/category                     |
+| `tls`    | Port 443                  | TCP connection and TLS handshake complete                                | DNS/TCP/handshake timing, peer certificate, TLS error phase       |
+| `web`    | Port 80 or 443            | Final HTTP status is accepted                                            | Status code, URL, redirect status, DNS/TLS/HTTP error metadata    |
+
+### DNS
 
 ```typescript
 import dnsDriver from "unping/drivers/dns";
 
-const dns = createPingManager({
-  driver: dnsDriver({
-    type: "A", // Query A records
-    servers: ["8.8.8.8", "1.1.1.1"], // Custom DNS servers
-  }),
+const driver = dnsDriver({
+  type: "AAAA",
+  servers: ["8.8.8.8", "1.1.1.1"],
 });
-
-const results = await dns.ping("example.com");
-console.log(`DNS Resolution: ${results[0].alive ? "Success" : "Failed"}`);
 ```
 
-### Hybrid Driver
+The DNS race timer is cleared after success, failure, or timeout. `ENOTFOUND`, `ESERVFAIL`, and other Node.js DNS codes are retained on `result.error`.
 
-Smart detection with automatic fallback between multiple drivers.
+### Hybrid
 
 ```typescript
 import dnsDriver from "unping/drivers/dns";
@@ -115,321 +100,142 @@ import hybridDriver from "unping/drivers/hybrid";
 import tcpDriver from "unping/drivers/tcp";
 import webDriver from "unping/drivers/web";
 
-// Use default driver configuration (TCP → Web → DNS)
-const hybrid = createPingManager({
-  driver: hybridDriver(),
+const driver = hybridDriver({
+  drivers: [
+    tcpDriver({ port: 443 }),
+    webDriver({ method: "GET", path: "/health", successStatuses: [204] }),
+    dnsDriver(),
+  ],
 });
-
-// Or specify custom drivers with specific configurations
-const customHybrid = createPingManager({
-  driver: hybridDriver({
-    drivers: [
-      tcpDriver({ port: 443 }), // Try HTTPS first
-      webDriver({ method: "GET" }), // Then HTTP GET
-      dnsDriver({ type: "AAAA" }), // Then IPv6 DNS
-    ],
-  }),
-});
-
-const results = await hybrid.ping("example.com");
-console.log(`Alive: ${results[0].alive}`);
-console.log(`Time: ${results[0].time}ms`);
 ```
 
-### Batch Pings
+Hybrid tries drivers in order and preserves the selected driver's result count. It distinguishes:
 
-Send multiple pings with intervals for detailed analysis.
+- **target_down**: the driver made a target observation and classified it as not alive.
+- **driver_failure**: the driver could not execute, returned no results, threw, or marked a command/configuration error in `metadata.driverFailure`.
+
+A target-down result falls through to the next strategy. When at least one target observation exists after all attempts, hybrid resolves with a non-live result and attaches `attempts` plus `fallbackReasons`. If no driver could make a target observation, it throws the final driver error; it does not silently rewrite a transport/configuration failure as `alive: false`.
+
+### ICMP
+
+The ICMP driver uses the operating system's native `ping` command. It does not open raw sockets or use Bun APIs. Targets are passed as the final argv value through `child_process.spawn` with `shell: false`; option-like or control-character targets are rejected.
+
+```typescript
+import icmpDriver from "unping/drivers/icmp";
+
+const driver = icmpDriver({
+  binaryPath: "/usr/local/bin/ping",
+  platformBinaryPaths: {
+    darwin: "/sbin/ping",
+    linux: "/usr/bin/ping",
+    win32: "C:\\Windows\\System32\\PING.EXE",
+  },
+});
+```
+
+The driver runs one native probe per result, uses the shared `count`/`interval` loop, sends `size` where the platform supports it, and kills the child at `timeout`. Output parsers cover common Windows, macOS, and Linux formats. Locale-specific output that cannot be parsed still keeps process status and counters.
+
+### TCP
+
+```typescript
+import tcpDriver from "unping/drivers/tcp";
+
+const driver = tcpDriver({ port: 5432 });
+```
+
+TCP connect timing is reported in `metadata.connectTime`; connection errors retain OS codes such as `ECONNREFUSED`.
+
+### TLS
+
+The TLS driver uses Node's `tls.connect`. It reports DNS lookup, TCP connect, and TLS handshake timing, plus peer certificate metadata after a successful handshake.
+
+```typescript
+import tlsDriver from "unping/drivers/tls";
+
+const driver = tlsDriver({
+  port: 8443,
+  rejectUnauthorized: false,
+  ca: "/path/to/ca.pem",
+});
+```
+
+`metadata.tcpConnectTime` and `metadata.tlsHandshakeTime` are measured in milliseconds. `error.phase` distinguishes a failed TCP connection from a failed TLS handshake, and certificate data is retained where Node exposes it.
+
+### Web
+
+Web probes use the global `fetch` implementation. Status codes are preserved for both accepted and rejected HTTP responses.
+
+```typescript
+import webDriver from "unping/drivers/web";
+
+const driver = webDriver({
+  method: "HEAD",
+  path: "/health",
+  https: true,
+  port: 8443,
+  headers: { Authorization: "Bearer token" },
+  successStatuses: [204, 418],
+  isSuccess: (statusCode) => statusCode < 500,
+});
+```
+
+`successStatuses` extends the default `2xx/3xx` rule; `isSuccess` fully replaces it. DNS, TCP, TLS/certificate, HTTP status, and timeout failures are represented with normalized `error` metadata rather than an identical bare `alive: false`.
+
+## Batch probes
 
 ```typescript
 const results = await ping.ping("example.com", {
-  count: 5, // Send 5 pings
-  timeout: 3000, // 3 second timeout per ping
-  interval: 500, // Wait 500ms between pings
+  count: 5,
+  timeout: 3000,
+  interval: 500,
+  size: 64,
 });
 
-results.forEach((result) => {
-  console.log(`[${result.sequence}] ${result.host}: ${result.alive ? "✓" : "✗"} ${result.time}ms`);
-});
+const sent = results.length;
+const received = results.filter((result) => result.alive).length;
+const average = results.reduce((sum, result) => sum + result.time, 0) / sent;
 
-// Calculate statistics
-const successRate = results.filter((r) => r.alive).length / results.length;
-const avgTime = results.reduce((sum, r) => sum + r.time, 0) / results.length;
-
-console.log(`Success Rate: ${(successRate * 100).toFixed(1)}%`);
-console.log(`Average Time: ${avgTime.toFixed(0)}ms`);
+console.log({ sent, received, loss: sent - received, average });
 ```
 
-### Available Drivers
+`size` is passed to drivers that support a packet size, currently ICMP. Drivers without a packet-size concept ignore it safely.
+
+## Custom drivers
 
 ```typescript
-// DNS driver (DNS resolution)
-import dnsDriver from "unping/drivers/dns";
-// Hybrid driver (smart fallback)
-import hybridDriver from "unping/drivers/hybrid";
-// TCP driver (port reachability)
-import tcpDriver from "unping/drivers/tcp";
-// Web driver (application layer - HTTP/HTTPS)
-import webDriver from "unping/drivers/web";
-```
+import type { PingDriver } from "unping";
 
-### Advanced Configuration
+let sequence = 0;
 
-#### Web Driver Options
-
-```typescript
-import webDriver from "unping/drivers/web";
-
-const web = createPingManager({
-  driver: webDriver({
-    method: "GET", // GET or HEAD (default: HEAD)
-    port: 8080, // Custom port
-    https: true, // Force HTTPS
-    path: "/health", // Custom path
-    headers: {
-      // Custom headers
-      "User-Agent": "My-Pinger/1.0",
+const driver: PingDriver = {
+  name: "custom",
+  options: {},
+  ping: async (host, options) => [
+    {
+      host,
+      alive: true,
+      time: 1,
+      sequence: ++sequence,
+      kind: "custom",
+      method: "custom",
+      timestamp: Date.now(),
+      metadata: { requestedCount: options?.count ?? 1, source: "fixture" },
     },
-  }),
-});
+  ],
+};
 ```
 
-#### TCP Driver Options
+For a real multi-probe adapter, import `runProbeSeries` from the package root and call your single-probe implementation once per sequence. It applies the shared defaults, zero intervals, validation, timestamps, and fallback sequence values.
 
-```typescript
-import tcpDriver from "unping/drivers/tcp";
+## Validation
 
-const tcp = createPingManager({
-  driver: tcpDriver({
-    port: 22, // Custom port
-    connectTimeout: 2000, // Connection timeout in ms
-  }),
-});
+```bash
+$ pnpm exec vp test run packages/unping
+$ pnpm exec vp check --fix packages/unping
+$ pnpm --filter unping build
 ```
 
-#### DNS Driver Options
-
-```typescript
-import dnsDriver from "unping/drivers/dns";
-
-const dns = createPingManager({
-  driver: dnsDriver({
-    type: "AAAA", // Query AAAA records (IPv6)
-    servers: ["8.8.8.8"], // Custom DNS servers
-  }),
-});
-```
-
-#### Hybrid Driver Options
-
-```typescript
-import hybridDriver from "unping/drivers/hybrid";
-import tcpDriver from "unping/drivers/tcp";
-import webDriver from "unping/drivers/web";
-
-const hybrid = createPingManager({
-  driver: hybridDriver({
-    drivers: [
-      tcpDriver({ port: 8080 }), // Custom TCP driver
-      webDriver({ method: "GET" }), // Custom Web driver
-      // Add more drivers as needed
-    ],
-  }),
-});
-```
-
-### Error Handling
-
-```typescript
-try {
-  const results = await ping.ping("example.com", { timeout: 5000 });
-
-  if (results.length > 0) {
-    const result = results[0];
-
-    if (result.alive) {
-      console.log(`Host is reachable: ${result.time}ms`);
-    } else {
-      console.log(`Host is unreachable (timed out)`);
-    }
-  }
-} catch (error) {
-  console.error("Ping failed:", error.message);
-}
-```
-
-## API Reference
-
-### Ping Manager
-
-#### `createPingManager(options)`
-
-Creates a new ping manager instance with the specified driver.
-
-**Parameters:**
-
-- `options.driver` - Ping driver instance (HTTP, TCP, DNS, or Hybrid)
-
-**Returns:** Ping manager instance with `ping()` method
-
-#### Methods
-
-##### `ping(host, options?)`
-
-Ping a host and return results.
-
-**Parameters:**
-
-- `host` (string) - Hostname or IP address to ping
-- `options` (object, optional) - Ping options
-  - `count` (number) - Number of pings to send (default: 1)
-  - `timeout` (number) - Timeout in milliseconds per ping (default: 5000)
-  - `interval` (number) - Wait time in milliseconds between pings (default: 0)
-  - `size` (number) - Packet size in bytes (driver-dependent)
-
-**Returns:** `Promise<PingResult[]>` - Array of ping results
-
-### Ping Result
-
-```typescript
-interface PingResult {
-  host: string; // Target host
-  alive: boolean; // Is reachable
-  time: number; // Response time in milliseconds
-  sequence?: number; // Sequence number for batch pings
-  ttl?: number; // Time to live (when available)
-}
-```
-
-### Driver Options
-
-#### WebDriverOptions
-
-```typescript
-interface WebDriverOptions {
-  method?: "HEAD" | "GET"; // Request method (default: "HEAD")
-  port?: number; // Custom port (default: 80/443)
-  https?: boolean; // Force HTTPS (default: auto-detect)
-  path?: string; // Request path (default: "/")
-  headers?: Record<string, string>; // Custom headers
-}
-```
-
-#### TCPDriverOptions
-
-```typescript
-interface TCPDriverOptions {
-  port?: number; // Target port (default: 80)
-  connectTimeout?: number; // Connection timeout in ms (default: 5000)
-}
-```
-
-#### DNSDriverOptions
-
-```typescript
-interface DNSDriverOptions {
-  type?: "A" | "AAAA" | "CNAME" | "MX" | "TXT" | "NS"; // Record type (default: "A")
-  servers?: string[]; // DNS servers (default: system DNS)
-}
-```
-
-#### HybridDriverOptions
-
-```typescript
-interface HybridDriverOptions {
-  drivers?: Driver[]; // Array of drivers to try in order (default: [tcp, http, dns])
-}
-```
-
-## Hybrid Driver Behavior
-
-The Hybrid Driver provides intelligent network connectivity detection by trying multiple methods in order:
-
-1. **TCP (First Priority)**: Fastest method, checks port reachability
-2. **Web (Second Priority)**: Confirms application layer availability (HTTP/HTTPS)
-3. **DNS (Last Priority)**: Basic DNS resolution capability as fallback
-
-**Why this order?**
-
-- **TCP First**: Closest to traditional ICMP ping, detects IP layer connectivity quickly (~1-5ms)
-- **Web Second**: Validates that the service is actually responding at application level (~100-300ms)
-- **DNS Last**: Only checks if domain can be resolved, doesn't guarantee host reachability (~10-20ms)
-
-**Custom Driver Configuration Example:**
-
-```typescript
-import dnsDriver from "unping/drivers/dns";
-import tcpDriver from "unping/drivers/tcp";
-// For web service monitoring - prioritize HTTP
-import webDriver from "unping/drivers/web";
-
-const webMonitor = createPingManager({
-  driver: hybridDriver({
-    drivers: [webDriver({ method: "HEAD", path: "/health" }), tcpDriver({ port: 80 }), dnsDriver()],
-  }),
-});
-
-// For quick connectivity checks - prioritize TCP
-const quickCheck = createPingManager({
-  driver: hybridDriver({
-    drivers: [tcpDriver({ port: 443 }), dnsDriver(), webDriver({ method: "GET" })],
-  }),
-});
-```
-
-## Use Cases
-
-### Web Service Monitoring
-
-```typescript
-const monitor = createPingManager({
-  driver: webDriver({ method: "HEAD", path: "/health" }),
-});
-
-setInterval(async () => {
-  const results = await monitor.ping("api.example.com");
-  if (!results[0].alive) {
-    console.error("Service is down!");
-    // Trigger alert
-  }
-}, 60000); // Check every minute
-```
-
-### Port Availability Check
-
-```typescript
-const ports = [22, 80, 443, 8080];
-
-for (const port of ports) {
-  const checker = createPingManager({
-    driver: tcpDriver({ port }),
-  });
-
-  const results = await checker.ping("example.com");
-  console.log(`Port ${port}: ${results[0].alive ? "Open" : "Closed"}`);
-}
-```
-
-### Network Diagnostics
-
-```typescript
-import dnsDriver from "unping/drivers/dns";
-import hybridDriver from "unping/drivers/hybrid";
-import tcpDriver from "unping/drivers/tcp";
-import webDriver from "unping/drivers/web";
-
-const diagnostic = createPingManager({
-  driver: hybridDriver({
-    drivers: [tcpDriver({ port: 80 }), webDriver({ method: "HEAD" }), dnsDriver()],
-  }),
-});
-
-const hosts = ["google.com", "github.com", "cloudflare.com"];
-
-for (const host of hosts) {
-  const results = await diagnostic.ping(host);
-  console.log(`${host}: ${results[0].alive ? "✓" : "✗"} ${results[0].time}ms`);
-}
-```
+Tests mock child processes, sockets, DNS resolvers, TLS sockets, and `fetch`; default tests do not require network access.
 
 ## License
 

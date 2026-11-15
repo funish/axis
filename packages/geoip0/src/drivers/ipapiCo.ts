@@ -1,34 +1,43 @@
 import { ofetch } from "ofetch";
 
-import type { Driver, GeoLocation, QueryOptions, DriverOptions } from "..";
+import type {
+  BatchQueryOptions,
+  Driver,
+  DriverCapabilities,
+  DriverOptions,
+  GeoLocation,
+  QueryOptions,
+} from "..";
+import { mapBatches, resolveBatchOptions } from "../batch";
+import { createProviderError } from "../errors";
+import { normalizeGeoLocation } from "../normalize";
 
 // ipapi.co response interface
 export interface IpapiCoResponse {
-  ip: string; // IP address
-  city?: string; // City name
-  region?: string; // Region/Province name
-  region_code?: string; // Region/Province code
-  country?: string; // Country name
-  country_name?: string; // Full country name
-  country_code?: string; // Two-letter country code
-  country_code_iso3?: string; // Three-letter country code
-  country_capital?: string; // Country capital
-  country_tld?: string; // Country top-level domain
-  continent_code?: string; // Continent code
-  in_eu?: boolean; // Whether in EU
-  postal?: string; // Postal/ZIP code
-  latitude?: number; // Latitude
-  longitude?: number; // Longitude
-  timezone?: string; // Timezone ID
-  utc_offset?: string; // UTC offset
-  country_calling_code?: string; // Country calling code
-  currency?: string; // Currency code
-  currency_name?: string; // Currency name
-  languages?: string; // Languages spoken
-  country_area?: number; // Country area in km²
-  country_population?: number; // Country population
-  asn?: string; // ASN number
-  org?: string; // Organization name
+  ip?: string;
+  city?: string;
+  region?: string;
+  region_code?: string;
+  country?: string;
+  country_name?: string;
+  country_code?: string;
+  country_code_iso3?: string;
+  country_capital?: string;
+  continent_code?: string;
+  in_eu?: boolean;
+  postal?: string;
+  latitude?: number;
+  longitude?: number;
+  timezone?: string;
+  utc_offset?: string;
+  country_calling_code?: string;
+  currency?: string;
+  currency_name?: string;
+  languages?: string;
+  country_area?: number;
+  country_population?: number;
+  asn?: string;
+  org?: string;
 }
 
 // ipapi.co Driver options
@@ -37,107 +46,114 @@ export interface IpapiCoOptions extends DriverOptions {
    * Specify response fields to reduce bandwidth
    */
   fields?: string;
+  batchSize?: number;
+  concurrency?: number;
+}
+
+const SOURCE = "ipapi.co";
+
+function convert(data: IpapiCoResponse, queryOptions?: QueryOptions): GeoLocation | null {
+  return normalizeGeoLocation(
+    {
+      ip: data.ip || "",
+      source: SOURCE,
+      country: data.country_name || data.country,
+      countryCode: data.country_code,
+      region: data.region,
+      regionCode: data.region_code,
+      city: data.city,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      isp: data.org,
+      org: data.org,
+      asn: data.asn,
+      timezone: data.timezone,
+    },
+    queryOptions,
+  );
+}
+
+async function lookup(
+  ip: string | undefined,
+  options: IpapiCoOptions,
+  queryOptions?: QueryOptions,
+) {
+  const encodedIP = ip === undefined ? undefined : encodeURIComponent(ip);
+  const suffix = options.fields
+    ? encodedIP
+      ? `${encodedIP}/${encodeURIComponent(options.fields)}/`
+      : `${encodeURIComponent(options.fields)}/`
+    : encodedIP
+      ? `${encodedIP}/json/`
+      : "json/";
+  const data = await ofetch<IpapiCoResponse>(`https://ipapi.co/${suffix}`);
+
+  if (!data.ip) {
+    throw createProviderError(SOURCE, "Provider returned no IP address");
+  }
+
+  return convert(data, queryOptions);
 }
 
 export default function ipapiCoDriver(options: IpapiCoOptions = {}): Driver<IpapiCoOptions> {
-  const lookup = async (ip: string, _queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
+  const lookupIP = async (ip: string, queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
-      let url = `https://ipapi.co/${encodeURIComponent(ip)}/json/`;
-
-      if (options.fields) {
-        url = `https://ipapi.co/${encodeURIComponent(ip)}/${encodeURIComponent(options.fields)}/`;
-      }
-
-      const data: IpapiCoResponse = await ofetch(url);
-
-      if (!data.ip) {
-        return null;
-      }
-
-      return {
-        ip: data.ip,
-        country: data.country_name || data.country || "",
-        countryCode: data.country_code || "",
-        region: data.region || "",
-        city: data.city || "",
-        latitude: data.latitude || 0,
-        longitude: data.longitude || 0,
-        isp: data.org || "",
-        org: data.org || "",
-        asn: data.asn || "",
-        timezone: data.timezone || "",
-        source: "ipapi.co",
-        regionCode: "",
-        accuracyRadius: "",
-        isProxy: false,
-      };
-    } catch {
-      return null;
+      return await lookup(ip, options, queryOptions);
+    } catch (error) {
+      throw createProviderError(SOURCE, error);
     }
   };
 
-  const current = async (_queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
+  const current = async (queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
-      let url = "https://ipapi.co/json/";
-
-      if (options.fields) {
-        url = `https://ipapi.co/${encodeURIComponent(options.fields)}/`;
-      }
-
-      const data: IpapiCoResponse = await ofetch(url);
-
-      if (!data.ip) {
-        return null;
-      }
-
-      return {
-        ip: data.ip,
-        country: data.country_name || data.country || "",
-        countryCode: data.country_code || "",
-        region: data.region || "",
-        city: data.city || "",
-        latitude: data.latitude || 0,
-        longitude: data.longitude || 0,
-        isp: data.org || "",
-        org: data.org || "",
-        asn: data.asn || "",
-        timezone: data.timezone || "",
-        source: "ipapi.co",
-        regionCode: "",
-        accuracyRadius: "",
-        isProxy: false,
-      };
-    } catch {
-      return null;
+      return await lookup(undefined, options, queryOptions);
+    } catch (error) {
+      throw createProviderError(SOURCE, error);
     }
   };
 
   const batchLookup = async (
     ips: string[],
-    _queryOptions?: QueryOptions,
+    queryOptions?: BatchQueryOptions,
   ): Promise<GeoLocation[]> => {
-    try {
-      // ipapi.co doesn't have a built-in batch endpoint for free tier
-      // We'll construct our own batch request using Promise.allSettled
-      const promises = ips.map((ip) => lookup(ip, _queryOptions));
-      const results = await Promise.allSettled(promises);
+    const batchOptions = resolveBatchOptions(queryOptions, {
+      batchSize: options.batchSize ?? 1,
+      concurrency: options.concurrency ?? 3,
+    });
 
-      return results
-        .filter(
-          (result): result is PromiseFulfilledResult<GeoLocation> =>
-            result.status === "fulfilled" && result.value !== null,
-        )
-        .map((result) => result.value);
-    } catch {
-      return [];
-    }
+    const batches = await mapBatches(
+      ips,
+      batchOptions,
+      async (batch) =>
+        await Promise.all(
+          batch.map(async (ip) => {
+            try {
+              return await lookupIP(ip, queryOptions);
+            } catch {
+              return null;
+            }
+          }),
+        ),
+    );
+
+    return batches.flat().filter((result): result is GeoLocation => result !== null);
+  };
+
+  const capabilities: DriverCapabilities = {
+    lookup: true,
+    current: true,
+    batchLookup: true,
+    nativeBatch: false,
+    remote: true,
+    proxyDetection: false,
   };
 
   return {
-    name: "ipapi.co",
+    name: SOURCE,
     options,
-    lookup,
-    batchLookup,
+    capabilities,
+    lookup: lookupIP,
     current,
+    batchLookup,
   };
 }

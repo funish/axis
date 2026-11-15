@@ -2,136 +2,202 @@
  * IPX - A powerful and efficient IP address manipulation library
  */
 
+export interface IPv4CIDRRange {
+  start: number;
+  end: number;
+  prefix: number;
+  version: 4;
+}
+
+export interface IPv6CIDRRange {
+  start: bigint;
+  end: bigint;
+  prefix: number;
+  version: 6;
+}
+
+export type CIDRRange = IPv4CIDRRange | IPv6CIDRRange;
+
+const IPV4_PATTERN =
+  /^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+const IPV6_GROUP_PATTERN = /^[0-9A-Fa-f]{1,4}$/;
+const CIDR_PREFIX_PATTERN = /^(?:0|[1-9]\d*)$/;
+const IPV4_MAX = 0xffffffff;
+const IPV6_MAX = (1n << 128n) - 1n;
+
+function parseIPv4Address(ip: string): number {
+  if (typeof ip !== "string") {
+    throw new TypeError("Invalid IPv4 address");
+  }
+
+  if (!IPV4_PATTERN.test(ip)) {
+    throw new Error("Invalid IPv4 address");
+  }
+
+  return ip.split(".").reduce((value, octet) => (value << 8) | Number.parseInt(octet, 10), 0) >>> 0;
+}
+
+/**
+ * Expand an IPv6 address to eight 16-bit groups.
+ *
+ * RFC 4291 permits IPv4 dotted-decimal text in the last 32 bits. Such text is
+ * replaced here first so that every address goes through the same `::`
+ * compression implementation.
+ */
+function expandIPv6Groups(ip: string): string[] {
+  if (typeof ip !== "string" || ip === "") {
+    throw new Error("Invalid IPv6 address");
+  }
+
+  let text = ip;
+
+  if (text.includes(".")) {
+    const separator = text.lastIndexOf(":");
+    if (separator === -1) {
+      throw new Error("Invalid IPv6 address");
+    }
+
+    const ipv4 = parseIPv4Address(text.slice(separator + 1));
+    text = `${text.slice(0, separator)}:${(ipv4 >>> 16).toString(16)}:${(ipv4 & 0xffff).toString(16)}`;
+  }
+
+  const pieces = text.split("::");
+  if (pieces.length > 2) {
+    throw new Error("Invalid IPv6 compression");
+  }
+
+  let groups: string[];
+  if (pieces.length === 2) {
+    const [left, right] = pieces;
+    const leftGroups = left === "" ? [] : left.split(":");
+    const rightGroups = right === "" ? [] : right.split(":");
+    const explicitGroups = leftGroups.length + rightGroups.length;
+
+    if (
+      leftGroups.some((group) => group === "") ||
+      rightGroups.some((group) => group === "") ||
+      explicitGroups > 7
+    ) {
+      throw new Error("Invalid IPv6 compression");
+    }
+
+    groups = [
+      ...leftGroups,
+      ...Array.from({ length: 8 - explicitGroups }, () => "0"),
+      ...rightGroups,
+    ];
+  } else {
+    groups = text.split(":");
+  }
+
+  if (groups.length !== 8 || !groups.every((group) => IPV6_GROUP_PATTERN.test(group))) {
+    throw new Error("Invalid IPv6 address");
+  }
+
+  return groups;
+}
+
+function assertIPv4Integer(value: number): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value)) {
+    throw new TypeError("Invalid IPv4 integer");
+  }
+  if (value < 0 || value > IPV4_MAX) {
+    throw new RangeError("IPv4 integer is out of range");
+  }
+  return value;
+}
+
+function assertIPv6Integer(value: bigint): bigint {
+  if (typeof value !== "bigint") {
+    throw new TypeError("Invalid IPv6 integer");
+  }
+  if (value < 0n || value > IPV6_MAX) {
+    throw new RangeError("IPv6 integer is out of range");
+  }
+  return value;
+}
+
 /**
  * Convert IPv4 address to 32-bit number
  */
 export function ipv4ToInt(ip: string): number {
-  return ip.split(".").reduce((int, oct) => (int << 8) + Number.parseInt(oct, 10), 0) >>> 0;
+  return parseIPv4Address(ip);
 }
 
 /**
  * Convert IPv6 address to BigInt
  */
 export function ipv6ToBigInt(ip: string): bigint {
-  // Handle compressed IPv6 addresses with ::
-  if (ip.includes("::")) {
-    const parts = ip.split(":");
-    const compressedIndex = parts.indexOf("");
-
-    // Count how many empty parts after compression
-    let emptyCount = 0;
-    for (let i = compressedIndex; i < parts.length; i++) {
-      if (parts[i] === "") emptyCount++;
-    }
-
-    // Calculate how many zeros to insert
-    const missingZeros = 8 - (parts.length - emptyCount) + 1;
-
-    const expandedParts: string[] = [];
-    for (let i = 0; i < parts.length; i++) {
-      if (parts[i] === "") {
-        if (i === 0 || i === parts.length - 1) {
-          continue; // Skip empty at start/end (leading/trailing ::)
-        }
-        // Insert missing zeros
-        for (let j = 0; j < missingZeros; j++) {
-          expandedParts.push("0");
-        }
-      } else {
-        expandedParts.push(parts[i]);
-      }
-    }
-
-    ip = expandedParts.join(":");
-  }
-
-  return ip.split(":").reduce((int, hex) => {
-    return (int << 16n) + BigInt(Number.parseInt(hex || "0", 16));
-  }, 0n);
+  return expandIPv6Groups(ip).reduce(
+    (value, group) => (value << 16n) | BigInt(Number.parseInt(group, 16)),
+    0n,
+  );
 }
 
 /**
  * Check if string is valid IPv4 address
  */
 export function isIPv4(ip: string): boolean {
-  const parts = ip.split(".");
-  return (
-    parts.length === 4 &&
-    parts.every((part) => {
-      const num = Number.parseInt(part, 10);
-      return num >= 0 && num <= 255 && part === num.toString();
-    })
-  );
+  if (typeof ip !== "string") {
+    return false;
+  }
+  return IPV4_PATTERN.test(ip);
 }
 
 /**
  * Check if string is valid IPv6 address
  */
 export function isIPv6(ip: string): boolean {
-  // Handle compressed notation
-  if (ip.includes("::")) {
-    const parts = ip.split(":");
-
-    // Count non-empty parts
-    const nonEmptyParts = parts.filter((part) => part !== "");
-    if (nonEmptyParts.length > 8) return false;
-
-    // Validate non-empty parts
-    return nonEmptyParts.every((part) => {
-      return /^[0-9A-Fa-f]{1,4}$/.test(part);
-    });
+  if (typeof ip !== "string") {
+    return false;
   }
 
-  const parts = ip.split(":");
-  return (
-    parts.length === 8 &&
-    parts.every((part) => {
-      return /^[0-9A-Fa-f]{1,4}$/.test(part);
-    })
-  );
+  try {
+    expandIPv6Groups(ip);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Convert number to IPv4 address
  */
 export function intToIPv4(int: number): string {
-  const octets = [];
-  let num = int;
-  for (let i = 3; i >= 0; i--) {
-    octets[i] = (num & 255).toString();
-    num = num >>> 8;
-  }
-  return octets.join(".");
+  const value = assertIPv4Integer(int);
+  return [(value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff].join(
+    ".",
+  );
 }
 
 /**
  * Convert BigInt to IPv6 address
  */
 export function bigIntToIPv6(int: bigint): string {
-  const hex = int.toString(16).padStart(32, "0");
-  const parts = [];
-  for (let i = 0; i < 8; i++) {
-    parts.push(hex.slice(i * 4, (i + 1) * 4));
-  }
-  return parts.join(":");
+  const value = assertIPv6Integer(int);
+  return value
+    .toString(16)
+    .padStart(32, "0")
+    .replace(/(.{4})/g, "$1:")
+    .slice(0, -1);
 }
 
 /**
  * Convert IPv4 address to ArrayBuffer (4 bytes)
  */
 export function ipv4ToBuffer(ip: string): ArrayBuffer {
-  if (!isIPv4(ip)) {
-    throw new Error("Invalid IPv4 address");
+  if (typeof ip !== "string") {
+    throw new TypeError("Invalid IPv4 address");
   }
 
+  const value = parseIPv4Address(ip);
   const buffer = new ArrayBuffer(4);
   const view = new DataView(buffer);
-  const ipInt = ipv4ToInt(ip);
 
-  view.setUint8(0, (ipInt >> 24) & 0xff);
-  view.setUint8(1, (ipInt >> 16) & 0xff);
-  view.setUint8(2, (ipInt >> 8) & 0xff);
-  view.setUint8(3, ipInt & 0xff);
+  view.setUint8(0, (value >>> 24) & 0xff);
+  view.setUint8(1, (value >>> 16) & 0xff);
+  view.setUint8(2, (value >>> 8) & 0xff);
+  view.setUint8(3, value & 0xff);
 
   return buffer;
 }
@@ -140,18 +206,16 @@ export function ipv4ToBuffer(ip: string): ArrayBuffer {
  * Convert IPv6 address to ArrayBuffer (16 bytes)
  */
 export function ipv6ToBuffer(ip: string): ArrayBuffer {
-  if (!isIPv6(ip)) {
-    throw new Error("Invalid IPv6 address");
+  if (typeof ip !== "string") {
+    throw new TypeError("Invalid IPv6 address");
   }
 
+  const value = ipv6ToBigInt(ip);
   const buffer = new ArrayBuffer(16);
   const view = new DataView(buffer);
-  const bigIntValue = ipv6ToBigInt(ip);
 
-  // Convert BigInt to 16-byte array
-  for (let i = 0; i < 8; i++) {
-    const value = Number((bigIntValue >> BigInt((7 - i) * 16)) & 0xffffn);
-    view.setUint16(i * 2, value, false); // big-endian
+  for (let index = 0; index < 8; index += 1) {
+    view.setUint16(index * 2, Number((value >> BigInt((7 - index) * 16)) & 0xffffn), false);
   }
 
   return buffer;
@@ -161,38 +225,36 @@ export function ipv6ToBuffer(ip: string): ArrayBuffer {
  * Convert ArrayBuffer to IPv4 address (4 bytes)
  */
 export function bufferToIPv4(buffer: ArrayBuffer): string {
-  if (buffer.byteLength !== 4) {
+  if (!(buffer instanceof ArrayBuffer) || buffer.byteLength !== 4) {
     throw new Error("ArrayBuffer must be 4 bytes for IPv4");
   }
 
   const view = new DataView(buffer);
-  const ipInt =
-    (view.getUint8(0) << 24) |
-    (view.getUint8(1) << 16) |
-    (view.getUint8(2) << 8) |
-    view.getUint8(3);
-
-  return intToIPv4(ipInt);
+  const value =
+    ((view.getUint8(0) << 24) |
+      (view.getUint8(1) << 16) |
+      (view.getUint8(2) << 8) |
+      view.getUint8(3)) >>>
+    0;
+  return intToIPv4(value);
 }
 
 /**
  * Convert ArrayBuffer to IPv6 address (16 bytes)
  */
 export function bufferToIPv6(buffer: ArrayBuffer): string {
-  if (buffer.byteLength !== 16) {
+  if (!(buffer instanceof ArrayBuffer) || buffer.byteLength !== 16) {
     throw new Error("ArrayBuffer must be 16 bytes for IPv6");
   }
 
   const view = new DataView(buffer);
-  let bigIntValue = 0n;
+  let value = 0n;
 
-  // Convert 16-byte array to BigInt
-  for (let i = 0; i < 8; i++) {
-    const value = view.getUint16(i * 2, false); // big-endian
-    bigIntValue = (bigIntValue << 16n) + BigInt(value);
+  for (let index = 0; index < 8; index += 1) {
+    value = (value << 16n) | BigInt(view.getUint16(index * 2, false));
   }
 
-  return bigIntToIPv6(bigIntValue);
+  return bigIntToIPv6(value);
 }
 
 /**
@@ -202,11 +264,25 @@ export function isValidIP(ip: string): boolean {
   return isIPv4(ip) || isIPv6(ip);
 }
 
+function resolveIPv4Value(ip: string | number): number {
+  if (typeof ip === "number") {
+    return assertIPv4Integer(ip);
+  }
+  return parseIPv4Address(ip);
+}
+
+function resolveIPv6Value(ip: string | bigint): bigint {
+  if (typeof ip === "bigint") {
+    return assertIPv6Integer(ip);
+  }
+  return ipv6ToBigInt(ip);
+}
+
 /**
  * Check if IPv4 address is private
  */
 export function isPrivateIPv4(ip: string | number): boolean {
-  const value = typeof ip === "string" ? ipv4ToInt(ip) : ip;
+  const value = resolveIPv4Value(ip);
   return (
     (value >= ipv4ToInt("10.0.0.0") && value <= ipv4ToInt("10.255.255.255")) ||
     (value >= ipv4ToInt("172.16.0.0") && value <= ipv4ToInt("172.31.255.255")) ||
@@ -218,7 +294,7 @@ export function isPrivateIPv4(ip: string | number): boolean {
  * Check if IPv4 address is loopback
  */
 export function isLoopbackIPv4(ip: string | number): boolean {
-  const value = typeof ip === "string" ? ipv4ToInt(ip) : ip;
+  const value = resolveIPv4Value(ip);
   return value >= ipv4ToInt("127.0.0.0") && value <= ipv4ToInt("127.255.255.255");
 }
 
@@ -226,7 +302,7 @@ export function isLoopbackIPv4(ip: string | number): boolean {
  * Check if IPv4 address is multicast
  */
 export function isMulticastIPv4(ip: string | number): boolean {
-  const value = typeof ip === "string" ? ipv4ToInt(ip) : ip;
+  const value = resolveIPv4Value(ip);
   return value >= ipv4ToInt("224.0.0.0") && value <= ipv4ToInt("239.255.255.255");
 }
 
@@ -234,7 +310,7 @@ export function isMulticastIPv4(ip: string | number): boolean {
  * Check if IPv6 address is private
  */
 export function isPrivateIPv6(ip: string | bigint): boolean {
-  const value = typeof ip === "string" ? ipv6ToBigInt(ip) : ip;
+  const value = resolveIPv6Value(ip);
   return (
     value >= ipv6ToBigInt("fc00::") &&
     value <= ipv6ToBigInt("fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")
@@ -245,42 +321,47 @@ export function isPrivateIPv6(ip: string | bigint): boolean {
  * Check if IPv6 address is loopback
  */
 export function isLoopbackIPv6(ip: string | bigint): boolean {
-  const value = typeof ip === "string" ? ipv6ToBigInt(ip) : ip;
-  return value === ipv6ToBigInt("::1");
+  return resolveIPv6Value(ip) === 1n;
 }
 
 /**
  * Check if IPv6 address is multicast
  */
 export function isMulticastIPv6(ip: string | bigint): boolean {
-  const value = typeof ip === "string" ? ipv6ToBigInt(ip) : ip;
-  return (
-    value >= ipv6ToBigInt("ff00::") &&
-    value <= ipv6ToBigInt("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")
-  );
+  const value = resolveIPv6Value(ip);
+  return value >= ipv6ToBigInt("ff00::") && value <= IPV6_MAX;
 }
 
 /**
  * Get next IPv4 address
  */
 export function nextIPv4(ip: string | number): string {
-  const value = typeof ip === "string" ? ipv4ToInt(ip) : ip;
-  return intToIPv4((value + 1) >>> 0);
+  const value = resolveIPv4Value(ip);
+  if (value === IPV4_MAX) {
+    throw new RangeError("Cannot increment beyond the IPv4 address space");
+  }
+  return intToIPv4(value + 1);
 }
 
 /**
  * Get previous IPv4 address
  */
 export function prevIPv4(ip: string | number): string {
-  const value = typeof ip === "string" ? ipv4ToInt(ip) : ip;
-  return intToIPv4((value - 1) >>> 0);
+  const value = resolveIPv4Value(ip);
+  if (value === 0) {
+    throw new RangeError("Cannot decrement below the IPv4 address space");
+  }
+  return intToIPv4(value - 1);
 }
 
 /**
  * Get next IPv6 address
  */
 export function nextIPv6(ip: string | bigint): string {
-  const value = typeof ip === "string" ? ipv6ToBigInt(ip) : ip;
+  const value = resolveIPv6Value(ip);
+  if (value === IPV6_MAX) {
+    throw new RangeError("Cannot increment beyond the IPv6 address space");
+  }
   return bigIntToIPv6(value + 1n);
 }
 
@@ -288,7 +369,10 @@ export function nextIPv6(ip: string | bigint): string {
  * Get previous IPv6 address
  */
 export function prevIPv6(ip: string | bigint): string {
-  const value = typeof ip === "string" ? ipv6ToBigInt(ip) : ip;
+  const value = resolveIPv6Value(ip);
+  if (value === 0n) {
+    throw new RangeError("Cannot decrement below the IPv6 address space");
+  }
   return bigIntToIPv6(value - 1n);
 }
 
@@ -320,48 +404,46 @@ export function toNumber(ip: string): number | bigint {
 
 /**
  * Parse CIDR notation to range information
+ *
+ * Host bits in the address are normalized to zero. IPv4 sizes and endpoints
+ * stay in the safe-integer range; IPv6 values use BigInt.
  */
-export function parseCIDR(cidr: string): {
-  start: number | bigint;
-  end: number | bigint;
-  prefix: number;
-  version: 4 | 6;
-} {
-  const [ip, prefixStr] = cidr.split("/");
+export function parseCIDR(cidr: string): CIDRRange {
+  const segments = cidr.split("/");
+  if (segments.length !== 2) {
+    throw new Error("CIDR must contain exactly one slash");
+  }
 
-  // Determine IP version
-  let version: 4 | 6;
+  const [ip, prefixText] = segments;
+  if (!CIDR_PREFIX_PATTERN.test(prefixText)) {
+    throw new Error("Invalid CIDR prefix length");
+  }
+
+  const prefix = Number.parseInt(prefixText, 10);
   if (isIPv4(ip)) {
-    version = 4;
-  } else if (isIPv6(ip)) {
-    version = 6;
-  } else {
-    throw new Error("Invalid IP address in CIDR");
+    if (prefix > 32) {
+      throw new Error("Invalid IPv4 prefix length");
+    }
+
+    const hostBits = 32 - prefix;
+    const start = (ipv4ToInt(ip) & (IPV4_MAX - (2 ** hostBits - 1))) >>> 0;
+    const end = start + 2 ** hostBits - 1;
+    return { start, end, prefix, version: 4 };
   }
 
-  // Parse prefix length
-  const prefix = Number.parseInt(prefixStr, 10);
-  if (version === 4 && (prefix < 0 || prefix > 32)) {
-    throw new Error("Invalid IPv4 prefix length");
-  }
-  if (version === 6 && (prefix < 0 || prefix > 128)) {
-    throw new Error("Invalid IPv6 prefix length");
-  }
+  if (isIPv6(ip)) {
+    if (prefix > 128) {
+      throw new Error("Invalid IPv6 prefix length");
+    }
 
-  // Calculate start and end addresses
-  if (version === 4) {
-    const ipInt = ipv4ToInt(ip);
-    const mask = ~((1 << (32 - prefix)) - 1) >>> 0;
-    const start = ipInt & mask;
-    const end = start + ((1 << (32 - prefix)) - 1);
-    return { start, end, prefix, version };
-  } else {
-    const ipBigInt = ipv6ToBigInt(ip);
-    const mask = ~((1n << BigInt(128 - prefix)) - 1n);
-    const start = ipBigInt & mask;
+    const value = ipv6ToBigInt(ip);
+    const mask = IPV6_MAX & (IPV6_MAX << BigInt(128 - prefix));
+    const start = value & mask;
     const end = start + ((1n << BigInt(128 - prefix)) - 1n);
-    return { start, end, prefix, version };
+    return { start, end, prefix, version: 6 };
   }
+
+  throw new Error("Invalid IP address in CIDR");
 }
 
 /**
@@ -370,16 +452,10 @@ export function parseCIDR(cidr: string): {
 export function ipInRange(cidr: string, ip: string): boolean {
   try {
     const range = parseCIDR(cidr);
-    if (range.version === 4 && !isIPv4(ip)) return false;
-    if (range.version === 6 && !isIPv6(ip)) return false;
-
     if (range.version === 4) {
-      const ipInt = ipv4ToInt(ip);
-      return ipInt >= (range.start as number) && ipInt <= (range.end as number);
-    } else {
-      const ipBigInt = ipv6ToBigInt(ip);
-      return ipBigInt >= (range.start as bigint) && ipBigInt <= (range.end as bigint);
+      return isIPv4(ip) && ipv4ToInt(ip) >= range.start && ipv4ToInt(ip) <= range.end;
     }
+    return isIPv6(ip) && ipv6ToBigInt(ip) >= range.start && ipv6ToBigInt(ip) <= range.end;
   } catch {
     return false;
   }
@@ -390,10 +466,7 @@ export function ipInRange(cidr: string, ip: string): boolean {
  */
 export function firstIPInRange(cidr: string): string {
   const range = parseCIDR(cidr);
-  if (range.version === 4) {
-    return intToIPv4(range.start as number);
-  }
-  return bigIntToIPv6(range.start as bigint);
+  return range.version === 4 ? intToIPv4(range.start) : bigIntToIPv6(range.start);
 }
 
 /**
@@ -401,10 +474,7 @@ export function firstIPInRange(cidr: string): string {
  */
 export function lastIPInRange(cidr: string): string {
   const range = parseCIDR(cidr);
-  if (range.version === 4) {
-    return intToIPv4(range.end as number);
-  }
-  return bigIntToIPv6(range.end as bigint);
+  return range.version === 4 ? intToIPv4(range.end) : bigIntToIPv6(range.end);
 }
 
 /**
@@ -413,10 +483,11 @@ export function lastIPInRange(cidr: string): string {
 export function maskForCIDR(cidr: string): string {
   const range = parseCIDR(cidr);
   if (range.version === 4) {
-    const mask = ~((1 << (32 - range.prefix)) - 1) >>> 0;
+    const mask = (IPV4_MAX - (2 ** (32 - range.prefix) - 1)) >>> 0;
     return intToIPv4(mask);
   }
-  const mask = ~((1n << BigInt(128 - range.prefix)) - 1n);
+
+  const mask = IPV6_MAX & (IPV6_MAX << BigInt(128 - range.prefix));
   return bigIntToIPv6(mask);
 }
 
@@ -425,10 +496,7 @@ export function maskForCIDR(cidr: string): string {
  */
 export function rangeSize(cidr: string): number | bigint {
   const range = parseCIDR(cidr);
-  if (range.version === 4) {
-    return (range.end as number) - (range.start as number) + 1;
-  }
-  return (range.end as bigint) - (range.start as bigint) + 1n;
+  return range.version === 4 ? 2 ** (32 - range.prefix) : 1n << BigInt(128 - range.prefix);
 }
 
 /**
@@ -436,12 +504,8 @@ export function rangeSize(cidr: string): number | bigint {
  * More efficient than going through ArrayBuffer
  */
 export function ipv4ToBytes(ip: string): number[] {
-  if (!isIPv4(ip)) {
-    throw new Error("Invalid IPv4 address");
-  }
-
-  const parts = ip.split(".");
-  return parts.map((part) => Number.parseInt(part, 10));
+  const value = parseIPv4Address(ip);
+  return [(value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff];
 }
 
 /**
@@ -449,52 +513,11 @@ export function ipv4ToBytes(ip: string): number[] {
  * More efficient than going through ArrayBuffer
  */
 export function ipv6ToBytes(ip: string): number[] {
-  if (!isIPv6(ip)) {
-    throw new Error("Invalid IPv6 address");
-  }
-
-  // Handle compressed IPv6 addresses with ::
-  if (ip.includes("::")) {
-    const parts = ip.split(":");
-    const compressedIndex = parts.indexOf("");
-
-    // Count how many empty parts after compression
-    let emptyCount = 0;
-    for (let i = compressedIndex; i < parts.length; i++) {
-      if (parts[i] === "") emptyCount++;
-    }
-
-    // Calculate how many zeros to insert
-    const missingZeros = 8 - (parts.length - emptyCount) + 1;
-
-    const expandedParts: string[] = [];
-    for (let i = 0; i < parts.length; i++) {
-      if (parts[i] === "") {
-        if (i === 0 || i === parts.length - 1) {
-          continue; // Skip empty at start/end (leading/trailing ::)
-        }
-        // Insert missing zeros
-        for (let j = 0; j < missingZeros; j++) {
-          expandedParts.push("0");
-        }
-      } else {
-        expandedParts.push(parts[i]);
-      }
-    }
-
-    ip = expandedParts.join(":");
-  }
-
-  const parts = ip.split(":");
-  const bytes: number[] = [];
-
-  for (const part of parts) {
-    const value = Number.parseInt(part || "0", 16);
-    bytes.push((value >> 8) & 0xff);
-    bytes.push(value & 0xff);
-  }
-
-  return bytes;
+  const groups = expandIPv6Groups(ip);
+  return groups.flatMap((group) => {
+    const value = Number.parseInt(group, 16);
+    return [(value >>> 8) & 0xff, value & 0xff];
+  });
 }
 
 /**
@@ -532,14 +555,7 @@ export function rangesOverlap(cidr1: string, cidr2: string): boolean {
   }
 
   if (range1.version === 4) {
-    return (
-      (range1.start as number) <= (range2.end as number) &&
-      (range1.end as number) >= (range2.start as number)
-    );
+    return range1.start <= range2.end && range1.end >= range2.start;
   }
-
-  return (
-    (range1.start as bigint) <= (range2.end as bigint) &&
-    (range1.end as bigint) >= (range2.start as bigint)
-  );
+  return range1.start <= range2.end && range1.end >= range2.start;
 }

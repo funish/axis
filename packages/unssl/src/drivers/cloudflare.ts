@@ -1,10 +1,10 @@
-import { classifyHttpError, UnsslError } from "../errors";
+import { classifyHttpError, SSLError } from "../errors";
 import type {
   CertificateRequest,
   DriverOptions,
   HttpFetch,
   IssuedCertificate,
-  UnsslDriver,
+  SSLDriver,
 } from "../types";
 
 export interface CloudflareOriginCaDriverOptions extends DriverOptions {
@@ -38,13 +38,13 @@ interface CloudflareOriginCertificate {
 const allowedValidity = [7, 30, 90, 365, 730, 1095, 5475] as const;
 export default function cloudflareOriginCaDriver(
   options: CloudflareOriginCaDriverOptions,
-): UnsslDriver<CloudflareOriginCaDriverOptions> {
+): SSLDriver<CloudflareOriginCaDriverOptions> {
   const provider = "cloudflare-origin-ca";
   const baseUrl = options.baseUrl || "https://api.cloudflare.com/client/v4";
   const fetch = options.fetch || globalThis.fetch;
 
   if (!options.apiToken && !options.originCaKey) {
-    throw new UnsslError("Cloudflare Origin CA driver requires apiToken or originCaKey", {
+    throw new SSLError("Cloudflare Origin CA driver requires apiToken or originCaKey", {
       code: "invalid_request",
       provider,
     });
@@ -70,7 +70,7 @@ export default function cloudflareOriginCaDriver(
     try {
       response = await fetch(`${baseUrl}${path}`, init);
     } catch (error) {
-      throw new UnsslError(`Unable to connect to Cloudflare: ${path}`, {
+      throw new SSLError(`Unable to connect to Cloudflare: ${path}`, {
         code: "network",
         provider,
         cause: error,
@@ -83,7 +83,7 @@ export default function cloudflareOriginCaDriver(
     try {
       payload = JSON.parse(text) as CloudflareResponse<T>;
     } catch (error) {
-      throw new UnsslError("Cloudflare returned an invalid JSON response", {
+      throw new SSLError("Cloudflare returned an invalid JSON response", {
         code: "provider_error",
         provider,
         cause: error,
@@ -94,7 +94,7 @@ export default function cloudflareOriginCaDriver(
     const providerError = payload.errors?.[0];
     if (!response.ok || !payload.success) {
       const classified = classifyHttpError(response.status, provider, payload.errors);
-      throw new UnsslError(providerError?.message || classified.message, {
+      throw new SSLError(providerError?.message || classified.message, {
         code: classified.code,
         provider,
         status: response.status,
@@ -103,7 +103,7 @@ export default function cloudflareOriginCaDriver(
       });
     }
     if (!payload.result) {
-      throw new UnsslError("Cloudflare response has no result", {
+      throw new SSLError("Cloudflare response has no result", {
         code: "provider_error",
         provider,
         details: payload,
@@ -139,7 +139,7 @@ export default function cloudflareOriginCaDriver(
 
   async function issue(request: CertificateRequest): Promise<IssuedCertificate> {
     if (!request.identifiers.length) {
-      throw new UnsslError("At least one Cloudflare hostname is required", {
+      throw new SSLError("At least one Cloudflare hostname is required", {
         code: "invalid_request",
         provider,
       });
@@ -155,7 +155,7 @@ export default function cloudflareOriginCaDriver(
 
   function requireRenewalCsr(request?: Partial<CertificateRequest>): string {
     if (!request?.csrPem) {
-      throw new UnsslError("Cloudflare Origin CA renewal requires a new CSR", {
+      throw new SSLError("Cloudflare Origin CA renewal requires a new CSR", {
         code: "invalid_request",
         provider,
       });
@@ -180,7 +180,7 @@ export default function cloudflareOriginCaDriver(
 
     async revoke(request) {
       if (!request.certificateId) {
-        throw new UnsslError("Cloudflare revocation requires certificateId", {
+        throw new SSLError("Cloudflare revocation requires certificateId", {
           code: "invalid_request",
           provider,
         });
@@ -191,7 +191,7 @@ export default function cloudflareOriginCaDriver(
         reason !== "keyCompromise" &&
         reason !== "cessationOfOperation"
       ) {
-        throw new UnsslError("Cloudflare Origin CA revocation does not accept this reason", {
+        throw new SSLError("Cloudflare Origin CA revocation does not accept this reason", {
           code: "invalid_request",
           provider,
           details: { reason },

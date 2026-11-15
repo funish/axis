@@ -4,23 +4,21 @@ A modern RDAP (Registration Data Access Protocol) client and server implementati
 
 ## ✨ Features
 
-- 🎯 Full support for all RDAP query types:
+- 🎯 Lookup support for RDAP object query types:
   - 🌐 Domain names (including IDN support)
   - 🔍 IP addresses (IPv4 and IPv6)
   - 🔢 Autonomous System Numbers (ASN)
   - 🌍 Nameservers
   - 👤 Entity handles and object tags
-- 📦 Built-in IANA bootstrap files with option to fetch latest data
-- ⚡️ Real-time bootstrap data retrieval
+- 📦 Built-in IANA bootstrap files with optional cached metadata refresh
+- ⏱️ Configurable TTL and bundled-data fallback for bootstrap updates
 - 🔄 Proper Accept header usage for RDAP responses
-- 🛡️ Comprehensive error handling with detailed error types
+- 🛡️ Typed `RdapError` with stable codes, HTTP status, retryability, and query metadata
 - 📝 Full TypeScript support with strict type definitions
 - 🚀 Minimal dependencies and small footprint
 - 🔒 Secure access support (HTTPS and authentication)
-- 📄 Pagination support for large responses
-- 🧩 Functional programming approach - pure functions only
 - 🚀 Built-in RDAP server with h3 integration
-- 🔄 Server supports custom data providers and proxying
+- 🧭 Server support for local data providers, explicit upstream proxies, and bootstrap mode
 
 ## 📥 Installation
 
@@ -73,9 +71,11 @@ const nsInfo = await queryNameserver("ns1.example.com");
 const entityInfo = await queryEntity("GOGL");
 // Returns: RdapEntity with entity details, roles, etc.
 
-// Query help information
-const helpInfo = await queryHelp();
-// Returns: RdapHelp with RDAP server capabilities and reverse search properties
+// Query help information from an explicitly selected server
+const helpInfo = await queryHelp({
+  baseUrl: "https://rdap.example.com",
+});
+// Returns: RdapHelp with the server's advertised capabilities
 
 // Generic query with options
 const data = await queryRDAP("example.com", {
@@ -130,6 +130,8 @@ server.serve(8080);
 #### Server with Custom Base URL
 
 ```typescript
+// Without baseUrl or dataProvider, requests are resolved with the bootstrap service.
+// With baseUrl, the server proxies requests to the selected upstream service.
 const server = createRdapServer({
   baseUrl: "https://rdap.arin.net/registry",
 });
@@ -221,33 +223,34 @@ console.log(serverUrl); // "https://rdap.verisign.com"
 const serverUrl = await findBootstrapServer("ipv4", "8.8.8.8");
 console.log(serverUrl); // "https://rdap.arin.net"
 
-// Get bootstrap metadata for offline usage
+// Get bundled metadata for offline usage
 const metadata = await getBootstrapMetadata("ipv4");
-console.log(metadata.servers); // Available IPv4 RDAP servers
+console.log(metadata.services); // IPv4 ranges and RDAP servers
 
-// Force refresh bootstrap data
-const freshMetadata = await getBootstrapMetadata("dns", true);
+// Refresh once, cache it for an hour, then reuse the cached copy.
+// If refreshing fails while the cache is stale, bundled data is used.
+const freshMetadata = await getBootstrapMetadata("dns", true, 3_600_000);
 ```
 
 ### ⚠️ Error Handling
 
 ```typescript
-import { queryRDAP } from "rdap";
+import { queryRDAP, RdapError } from "rdap";
 
 try {
   const data = await queryRDAP("nonexistent-domain.example");
 } catch (error) {
-  console.error(`RDAP query failed: ${error.message}`);
+  if (error instanceof RdapError) {
+    console.error(`[${error.code}] ${error.message}`);
 
-  // Common error types:
-  if (error.message.includes("not found")) {
-    // Handle 404 errors
-  }
-  if (error.message.includes("rate limit")) {
-    // Handle 429 errors
-  }
-  if (error.message.includes("authentication failed")) {
-    // Handle 401/403 errors
+    if (error.status === 404) {
+      // The RDAP object was not found.
+    }
+    if (error.retryable) {
+      // Useful for 429 and upstream 5xx/network failures.
+    }
+  } else {
+    throw error;
   }
 }
 ```
@@ -294,7 +297,7 @@ Query entity information with optional configuration.
 
 #### `queryHelp<T = RdapHelp>(options?: RdapOptions): Promise<T>`
 
-Query RDAP help information from the server. Returns server capabilities, conformance levels, and reverse search properties.
+Query RDAP help information from an explicitly configured `baseUrl`. The bootstrap service cannot choose an RDAP help endpoint.
 
 ### 🚀 Server Functions
 
@@ -309,6 +312,7 @@ Create a complete RDAP server with convenience wrapper.
   - `dataProvider?` - Custom data handler for local responses
   - `authorize?` - Authorization function for requests
   - `fetchOptions?` - Custom fetch options for proxied requests
+  - `bootstrap?` - Refresh and TTL options used when neither `baseUrl` nor `dataProvider` is set
   - `resolvePath?` - Custom path resolver function
 
 **Returns:**
@@ -359,20 +363,21 @@ Convert internationalized domain name (IDN) to ASCII format.
 
 Convert bootstrap type to query type. Optionally accepts explicit query type to override default mapping.
 
-#### `findBootstrapServer(type: RdapBootstrapType, query: string): Promise<string>`
+#### `findBootstrapServer(type: RdapBootstrapType, query: string, bootstrap?: RdapBootstrapOptions): Promise<string>`
 
 Find appropriate RDAP server for a given query type and query string.
 
 **Returns:** Promise resolving to the RDAP server URL
 
-#### `getBootstrapMetadata(type: RdapBootstrapType, fetch?: boolean): Promise<RdapBootstrapMetadata>`
+#### `getBootstrapMetadata(type: RdapBootstrapType, fetch?: boolean, ttlMs?: number): Promise<RdapBootstrapMetadata>`
 
-Get bootstrap metadata for RDAP server discovery. Supports offline usage with cached data.
+Get bootstrap metadata for RDAP server discovery. Bundled data is used by default. Successful refreshes are cached in memory and reused until the TTL expires; bundled data is retained as the fallback.
 
 **Parameters:**
 
 - `type` - Bootstrap type ("asn" | "dns" | "ipv4" | "ipv6" | "object-tags")
 - `fetch` - Force refresh bootstrap data from IANA (default: false)
+- `ttlMs` - Cache lifetime in milliseconds (default: 3600000)
 
 **Returns:** Promise resolving to bootstrap metadata with server listings
 
@@ -393,6 +398,7 @@ interface RdapOptions {
   baseUrl?: string; // Custom RDAP server URL
   type?: RdapQueryType; // Explicit query type (overrides auto-detection)
   fetchOptions?: RequestInit; // Fetch API options (headers, auth, etc.)
+  bootstrap?: RdapBootstrapOptions; // Optional metadata refresh and TTL
 }
 ```
 
@@ -404,7 +410,8 @@ interface RdapOptions {
 - `RdapNameserver` - Nameserver information response
 - `RdapEntity` - Entity information response
 - `RdapHelp` - Help and server capabilities response
-- `RdapErrorResponse` - Error response
+- `RdapErrorResponse` - RDAP error response shape
+- `RdapError` - Typed client error
 
 ## 📖 Standards Compliance
 
@@ -421,11 +428,11 @@ This implementation strictly follows these RDAP-related standards:
 
 - **HTTP Method**: Uses GET for all RDAP queries as required by RFC 7482
 - **Content Negotiation**: Sends `Accept: application/rdap+json` header
-- **User-Agent**: Includes proper client identification
+- **Input Validation**: Validates and URL-encodes query values before requests
 - **URL Structure**: Follows `{baseUrl}/{queryType}/{query}` pattern
 - **Error Handling**: Implements comprehensive HTTP status code handling
-- **Help Support**: Provides `queryHelp()` for server capability discovery
-- **Bootstrap Service**: Uses IANA official bootstrap data for server discovery
+- **Help Support**: Provides `queryHelp()` for capability discovery from an explicit server
+- **Bootstrap Service**: Uses bundled IANA data by default, with optional cached refresh
 
 ## 📄 License
 

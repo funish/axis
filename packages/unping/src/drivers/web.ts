@@ -1,112 +1,159 @@
-import { ofetch } from "ofetch";
+import { classifyError } from "../errors";
+import { runProbeSeries } from "../probe";
+import type { DriverOptions, PingDriver, PingOptions, PingResult, ProbeErrorInfo } from "../types";
 
-import type { Driver, DriverOptions, PingResult, PingOptions } from "../types";
-
-/**
- * Web Driver Options
- * Supports both HTTP and HTTPS protocols for host reachability detection
- */
 export interface WebDriverOptions extends DriverOptions {
   /** Request method (default: HEAD) */
   method?: "HEAD" | "GET";
-  /** Custom port (default: 80/443) */
+  /** Target port (default: 80, or 443 for HTTPS) */
   port?: number;
-  /** Force use HTTPS (default: auto-detect based on port, 443→true, 80→false) */
+  /** Force HTTPS instead of deriving it from the port */
   https?: boolean;
   /** Request path (default: "/") */
   path?: string;
-  /** Custom headers */
+  /** Request headers */
   headers?: Record<string, string>;
+  /** Statuses treated as success in addition to the default predicate */
+  successStatuses?: number[];
+  /** Fully replaces the default status predicate */
+  isSuccess?: (statusCode: number) => boolean;
 }
 
-// Export pingOnce for reuse
+const DEFAULT_SUCCESS = (statusCode: number) => statusCode >= 200 && statusCode < 400;
+
+function formatUrlHost(host: string): string {
+  return host.includes(":") ? `[${host}]` : host;
+}
+
+function asErrorInfo(error: unknown, phase: ProbeErrorInfo["phase"]): ProbeErrorInfo {
+  const info = classifyError(error, phase);
+  if (info.code === "UNPING_TIMEOUT") {
+    return { ...info, phase: "timeout" };
+  }
+  return info;
+}
+
+// Exported for reuse and test fixtures.
 export async function pingOnceWeb(
   host: string,
-  protocol: string,
+  protocol: "http" | "https",
   port: number,
   path: string,
-  method: string,
+  method: "HEAD" | "GET",
   timeout: number,
   headers: Record<string, string>,
   sequence: number,
+  isSuccess: (statusCode: number) => boolean = DEFAULT_SUCCESS,
 ): Promise<PingResult> {
+  const controller = new AbortController();
   const startTime = Date.now();
+  let timer: NodeJS.Timeout | undefined;
+
+  const base: Pick<PingResult, "host" | "sequence" | "kind" | "method"> = {
+    host,
+    sequence,
+    kind: "web",
+    method,
+  };
+  const url = `${protocol}://${formatUrlHost(host)}:${port}${path}`;
 
   try {
-    const url = `${protocol}://${host}:${port}${path}`;
-
-    await ofetch(url, {
+    timer = setTimeout(() => controller.abort(), timeout);
+    timer.unref?.();
+    const response = await fetch(url, {
       method,
       headers,
-      timeout,
+      redirect: "follow",
+      signal: controller.signal,
     });
+    if (response.body) void response.body.cancel().catch(() => undefined);
 
     return {
-      host,
-      alive: true,
+      ...base,
+      alive: isSuccess(response.status),
       time: Date.now() - startTime,
-      sequence,
+      statusCode: response.status,
+      sent: 1,
+      received: 1,
+      error: isSuccess(response.status)
+        ? undefined
+        : {
+            code: `HTTP_${response.status}`,
+            message: response.statusText || `HTTP status ${response.status}`,
+            category: "http",
+            phase: "request",
+          },
+      metadata: {
+        url,
+        redirected: response.redirected,
+        port,
+      },
     };
-  } catch {
+  } catch (error) {
+    const aborted = error instanceof Error && error.name === "AbortError";
+    const errorInfo = aborted
+      ? {
+          code: "UNPING_TIMEOUT",
+          message: `HTTP request timed out after ${timeout}ms`,
+          category: "timeout" as const,
+          phase: "timeout" as const,
+        }
+      : asErrorInfo(error, "request");
+
     return {
-      host,
+      ...base,
       alive: false,
       time: Date.now() - startTime,
-      sequence,
+      sent: 1,
+      received: 0,
+      loss: 1,
+      error: errorInfo,
+      metadata: {
+        url,
+        port,
+      },
     };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
 /**
- * Creates a Web Driver that supports both HTTP and HTTPS protocols
- *
- * @example
- * // Auto-detect protocol based on port
- * webDriver()              // HTTP:80
- * webDriver({ port: 443 }) // HTTPS:443
- *
- * @example
- * // Explicit protocol control
- * webDriver({ https: true })        // HTTPS:443
- * webDriver({ https: true, port: 8443 })  // HTTPS:8443
- * webDriver({ https: false })       // HTTP:80
- *
- * @example
- * // Custom request options
- * webDriver({
- *   method: "GET",
- *   path: "/health",
- *   headers: { "User-Agent": "Custom-Pinger" }
- * })
+ * Creates a Web driver backed by the global fetch implementation. A response
+ * status is always preserved; DNS, TCP, TLS, and HTTP failures include
+ * normalized metadata instead of collapsing into a bare false result.
  */
-export default function webDriver(options: WebDriverOptions = {}): Driver {
-  const { method = "HEAD", path = "/", headers = {} } = options;
-
-  const ping = async (host: string, opts?: PingOptions): Promise<PingResult[]> => {
-    const count = opts?.count || 1;
-    const timeout = opts?.timeout || 5000;
-    const results: PingResult[] = [];
-
-    // Determine protocol: explicit https option takes priority over port-based detection
-    const protocol = (options.https ?? options.port === 443) ? "https" : "http";
-    const port = options.port || (protocol === "https" ? 443 : 80);
-
-    for (let i = 0; i < count; i++) {
-      const result = await pingOnceWeb(host, protocol, port, path, method, timeout, headers, i + 1);
-      results.push(result);
-
-      // Add interval if count > 1
-      if (i < count - 1 && opts?.interval) {
-        await new Promise((resolve) => setTimeout(resolve, opts.interval));
-      }
-    }
-
-    return results;
-  };
+export default function webDriver(options: WebDriverOptions = {}): PingDriver<WebDriverOptions> {
+  const {
+    method = "HEAD",
+    path = "/",
+    headers = {},
+    successStatuses,
+    isSuccess: customIsSuccess,
+  } = options;
+  const protocol = (options.https ?? options.port === 443) ? "https" : "http";
+  const port = options.port ?? (protocol === "https" ? 443 : 80);
+  const isSuccess =
+    customIsSuccess ??
+    ((statusCode: number) =>
+      DEFAULT_SUCCESS(statusCode) || successStatuses?.includes(statusCode) === true);
 
   return {
     name: "web",
     options,
-    ping,
+    ping: (host: string, pingOptions?: PingOptions): Promise<PingResult[]> =>
+      runProbeSeries(host, pingOptions ?? {}, (target, context) =>
+        pingOnceWeb(
+          target,
+          protocol,
+          port,
+          path,
+          method,
+          context.timeout,
+          headers,
+          context.sequence,
+          isSuccess,
+        ),
+      ),
   };
 }

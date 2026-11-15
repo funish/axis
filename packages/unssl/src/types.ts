@@ -98,7 +98,7 @@ export interface DnsRecord {
 
 /**
  * The minimum DNS surface needed by certificate challenges. An UnDns manager
- * satisfies it; UnSSL itself never binds to a particular DNS provider.
+ * satisfies it; SSL itself never binds to a particular DNS provider.
  */
 export interface DnsRecordOperations {
   getRecords(
@@ -115,7 +115,7 @@ export interface StoredKey {
   metadata?: Record<string, string>;
 }
 
-/** Storage backends implement this interface; UnSSL does not ship one. */
+/** Storage backends implement this interface; SSL does not ship one. */
 export interface KeyStorage {
   put(reference: string, key: StoredKey): void | Promise<void>;
   get(reference: string): StoredKey | null | Promise<StoredKey | null>;
@@ -147,7 +147,7 @@ export interface AcmeJws {
   signature: string;
 }
 
-/** The caller supplies account-key signing; UnSSL does not handle private keys. */
+/** The caller supplies account-key signing; SSL does not handle private keys. */
 export interface JwsSigner {
   alg: string;
   sign(
@@ -233,7 +233,7 @@ export interface AcmeIssueOptions {
   timeoutMs?: number;
 }
 
-export interface UnsslDriver<OptionsT = DriverOptions> {
+export interface SSLDriver<OptionsT = DriverOptions> {
   name: string;
   options?: OptionsT;
 
@@ -248,15 +248,14 @@ export interface UnsslDriver<OptionsT = DriverOptions> {
   dispose?: () => MaybePromise<void>;
 }
 
-export interface UnsslManagerOptions {
-  driver: UnsslDriver;
-  keyStorage?: KeyStorage;
+export interface SSLManagerOptions {
+  driver: SSLDriver;
   dns?: DnsRecordOperations;
   fetch?: HttpFetch;
 }
 
-export interface UnsslManager {
-  readonly driver: UnsslDriver;
+export interface SSLManager {
+  readonly driver: SSLDriver;
   issue(request: CertificateRequest): Promise<IssuedCertificate>;
   renew(
     certificate: IssuedCertificate,

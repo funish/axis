@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect, test, vi } from "vite-plus/test";
 
 import {
   AcmeClient,
@@ -16,7 +16,7 @@ import {
   type HttpFetch,
   type JwsSigner,
   type CertificateChallenge,
-  type UnsslDriver,
+  type SSLDriver,
 } from "../src";
 import acmeDriver from "../src/drivers/acme";
 import actalisDriver from "../src/drivers/actalis";
@@ -75,7 +75,7 @@ function createDnsOperations(): DnsRecordOperations & { records: Map<string, Dns
   };
 }
 
-describe("unssl manager", () => {
+describe("SSL manager", () => {
   test("issues, renews, revokes, and exposes deployment metadata", async () => {
     const manager = createSSLManager({ driver: testingDriver() });
 
@@ -108,7 +108,7 @@ describe("unssl manager", () => {
   });
 
   test("rejects operations missing from the optional-method contract", async () => {
-    const driver: UnsslDriver = { name: "empty", dispose: async () => {} };
+    const driver: SSLDriver = { name: "empty", dispose: async () => {} };
     const manager = createSSLManager({ driver });
 
     await expect(
@@ -119,7 +119,7 @@ describe("unssl manager", () => {
     });
   });
 
-  test("uses injected DNS operations without coupling UnSSL to a provider", async () => {
+  test("uses injected DNS operations without coupling SSL to a provider", async () => {
     const dns = createDnsOperations();
     const manager = createSSLManager({
       driver: testingDriver(),
@@ -266,6 +266,39 @@ describe("ACME protocol fixtures", () => {
     expect(requests[3].protectedHeader?.nonce).toBe("fresh-nonce");
   });
 
+  test("sends revocation payloads as base64url DER with RFC reason codes", async () => {
+    const calls: Array<{ url: string; method?: string; body?: unknown }> = [];
+    const fetch: HttpFetch = async (url, init) => {
+      calls.push({ url, method: init?.method, body: init?.body });
+      if (init?.method === "HEAD") {
+        return new Response(null, { status: 200, headers: { "replay-nonce": "nonce-1" } });
+      }
+      if (url === "https://ca.example/acme/directory") return Response.json(directory);
+      return new Response(null, { status: 200, headers: { "replay-nonce": "nonce-2" } });
+    };
+    const client = new AcmeClient({
+      directoryUrl: "https://ca.example/acme/directory",
+      fetch,
+      signer: { alg: "ES256", sign: async () => ({ signature: "fixture-signature" }) },
+      nonceStore: new MemoryNonceStore(),
+      accountUrl: "https://ca.example/acme/account/1",
+    });
+
+    await client.revoke(
+      "-----BEGIN CERTIFICATE-----\nZml4dHVyZS1jZXJ0\n-----END CERTIFICATE-----",
+      "superseded",
+    );
+
+    const revocation = calls.find((call) => call.url === directory.revokeCert);
+    if (!revocation) throw new Error("Missing revocation call");
+    expect(revocation.method).toBe("POST");
+    const revocationJws = JSON.parse(revocation.body as string) as { payload: string };
+    expect(JSON.parse(Buffer.from(revocationJws.payload, "base64url").toString())).toEqual({
+      certificate: "Zml4dHVyZS1jZXJ0",
+      reason: 4,
+    });
+  });
+
   test("maps HTTP failures to the unified error taxonomy", async () => {
     const fetch: HttpFetch = async () =>
       new Response(JSON.stringify({ detail: "too many requests" }), {
@@ -347,7 +380,8 @@ describe("SSL vendor drivers", () => {
     const driver = zeroSslDriver({ apiKey: "fixture-key", fetch, pollIntervalMs: 0 });
     const manager = createSSLManager({ driver });
     const deployed: CertificateChallenge[] = [];
-    const issued = await manager.issue({
+    vi.useFakeTimers();
+    const issuedPromise = manager.issue({
       identifiers: ["example.com", "www.example.com"],
       csrPem: csr,
       validityDays: 90,
@@ -358,6 +392,9 @@ describe("SSL vendor drivers", () => {
         },
       },
     });
+    await vi.advanceTimersByTimeAsync(0);
+    const issued = await issuedPromise;
+    vi.useRealTimers();
 
     expect(calls[0].authorization).toBe("ApiKey fixture-key");
     expect(calls[0].body).toMatchObject({
@@ -373,6 +410,61 @@ describe("SSL vendor drivers", () => {
     expect(issued.status).toBe("issued");
     expect(issued.certificatePem).toContain("leaf");
     expect(issued.chainPem).toContain("chain");
+    await manager.dispose();
+  });
+
+  test("ZeroSSL REST uses request-level zero-delay polling over the driver default", async () => {
+    const calls: string[] = [];
+    const certificate = {
+      id: "zerossl-zero-id",
+      common_name: "zero.example.com",
+      status: "pending_validation",
+      validation: {
+        other_methods: {
+          "zero.example.com": {
+            file_validation_url_http: "http://zero.example.com/.well-known/pki-validation/file.txt",
+            file_validation_content: ["hash", "comodoca.com", "bundle"],
+          },
+        },
+      },
+    };
+    const fetch: HttpFetch = async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      calls.push(`${init?.method || "GET"} ${path}`);
+      if (path === "/certificates") return Response.json(certificate, { status: 201 });
+      if (path === "/certificates/zerossl-zero-id/challenges") {
+        return Response.json({ success: 1 });
+      }
+      if (path === "/certificates/zerossl-zero-id") {
+        return Response.json({ ...certificate, status: "issued" });
+      }
+      if (path === "/certificates/zerossl-zero-id/download/json") {
+        return Response.json({
+          "certificate.crt": "-----BEGIN CERTIFICATE-----\nleaf\n-----END CERTIFICATE-----",
+          "ca_bundle.crt": "-----BEGIN CERTIFICATE-----\nchain\n-----END CERTIFICATE-----",
+        });
+      }
+      throw new Error(`Unexpected ZeroSSL request: ${path}`);
+    };
+    const driver = zeroSslDriver({ apiKey: "fixture-key", fetch, pollIntervalMs: 2000 });
+    const manager = createSSLManager({ driver });
+
+    vi.useFakeTimers();
+    const issuedPromise = manager.issue({
+      identifiers: ["zero.example.com"],
+      csrPem: csr,
+      validityDays: 90,
+      validation: {
+        pollIntervalMs: 0,
+        onValidation: async () => {},
+      },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    const issued = await issuedPromise;
+    vi.useRealTimers();
+
+    expect(calls).toContain("GET /certificates/zerossl-zero-id");
+    expect(issued.status).toBe("issued");
     await manager.dispose();
   });
 
@@ -434,6 +526,8 @@ describe("SSL vendor drivers", () => {
     const calls: Array<{ url: string; method?: string; body?: unknown }> = [];
     let nonceCount = 0;
     let authorizationPolls = 0;
+    let orderPolls = 0;
+    let finalizeCalls = 0;
     const fetch: HttpFetch = async (url, init) => {
       calls.push({
         url: String(url),
@@ -476,22 +570,24 @@ describe("SSL vendor drivers", () => {
       }
       if (path === "/challenge/1") return Response.json({ status: "pending" }, { headers: replay });
       if (path === "/order/1/finalize") {
+        finalizeCalls += 1;
         return Response.json(
           {
-            status: "valid",
+            status: "processing",
             url: "https://ca.example/order/1",
-            certificate: "https://ca.example/cert/1",
           },
           { headers: replay },
         );
       }
       if (path === "/order/1") {
+        orderPolls += 1;
+        const orderStatuses = ["pending", "ready", "valid"];
         return Response.json(
           {
-            status: "ready",
+            status: orderStatuses[orderPolls - 1] || "valid",
             url: "https://ca.example/order/1",
             finalize: "https://ca.example/order/1/finalize",
-            certificate: "https://ca.example/cert/1",
+            ...(orderPolls >= 3 && { certificate: "https://ca.example/cert/1" }),
           },
           { headers: replay },
         );
@@ -517,7 +613,8 @@ describe("SSL vendor drivers", () => {
     });
     const manager = createSSLManager({ driver });
     let deployed: CertificateChallenge | undefined;
-    const issued = await manager.issue({
+    vi.useFakeTimers();
+    const issuedPromise = manager.issue({
       identifiers: ["example.com"],
       csrPem: csr,
       acme: {
@@ -528,6 +625,9 @@ describe("SSL vendor drivers", () => {
         },
       },
     });
+    await vi.advanceTimersByTimeAsync(0);
+    const issued = await issuedPromise;
+    vi.useRealTimers();
 
     const accountCall = calls.find((call) => call.url === directory.newAccount);
     const accountJws = accountCall?.body as { payload: string };
@@ -565,6 +665,87 @@ describe("SSL vendor drivers", () => {
     if (!certificateCall) throw new Error("Missing certificate call");
     expect(certificateCall.method).toBe("POST");
     expect(deployed?.type).toBe("dns-01");
+    expect(issued.certificatePem).toContain("acme");
+    expect(orderPolls).toBe(3);
+    expect(finalizeCalls).toBe(1);
+    await manager.dispose();
+  });
+
+  test("uses driver-level zero-delay polling through the ACME order state machine", async () => {
+    const directory = {
+      newNonce: "https://ca.example/new-nonce",
+      newAccount: "https://ca.example/new-account",
+      newOrder: "https://ca.example/new-order",
+    };
+    let orderPolls = 0;
+    let finalizeCalls = 0;
+    const fetch: HttpFetch = async (url, init) => {
+      const replay = { "replay-nonce": `nonce-${url}` };
+      const path = new URL(String(url)).pathname;
+      if (init?.method === "HEAD") return new Response(null, { status: 200, headers: replay });
+      if (path === "/directory") return Response.json(directory);
+      if (path === "/new-account") {
+        return new Response(JSON.stringify({ status: "valid" }), {
+          status: 201,
+          headers: { ...replay, location: "https://ca.example/account/1" },
+        });
+      }
+      if (path === "/new-order") {
+        return Response.json(
+          {
+            status: "ready",
+            url: "https://ca.example/order/1",
+            finalize: "https://ca.example/order/1/finalize",
+            identifiers: [{ type: "dns", value: "example.com" }],
+          },
+          { status: 201, headers: replay },
+        );
+      }
+      if (path === "/order/1/finalize") {
+        finalizeCalls += 1;
+        return Response.json(
+          { status: "processing", url: "https://ca.example/order/1" },
+          { headers: replay },
+        );
+      }
+      if (path === "/order/1") {
+        orderPolls += 1;
+        return Response.json(
+          {
+            status: "valid",
+            url: "https://ca.example/order/1",
+            certificate: "https://ca.example/cert/1",
+          },
+          { headers: replay },
+        );
+      }
+      if (path === "/cert/1") {
+        return new Response("-----BEGIN CERTIFICATE-----\nacme\n-----END CERTIFICATE-----", {
+          status: 200,
+        });
+      }
+      throw new Error(`Unexpected ACME request: ${init?.method} ${path}`);
+    };
+
+    const driver = acmeDriver({
+      provider: "fixture-ca",
+      directoryUrl: "https://ca.example/directory",
+      fetch,
+      signer: { alg: "ES256", sign: async () => ({ signature: "fixture-signature" }) },
+      nonceStore: new MemoryNonceStore(),
+      accountJwk: { kty: "EC", crv: "P-256", x: "fixture-x", y: "fixture-y" },
+      pollIntervalMs: 0,
+    });
+    const manager = createSSLManager({ driver });
+
+    vi.useFakeTimers();
+    const issuedPromise = manager.issue({ identifiers: ["example.com"], csrPem: csr });
+    await vi.advanceTimersByTimeAsync(0);
+    const issued = await issuedPromise;
+    vi.useRealTimers();
+
+    expect(orderPolls).toBe(1);
+    expect(finalizeCalls).toBe(1);
     expect(issued.certificatePem).toContain("acme");
     await manager.dispose();
   });
@@ -645,7 +826,7 @@ describe("SSL vendor drivers", () => {
   });
 });
 
-test.skipIf(!process.env.UNSSL_TEST_LIVE_ACME)(
+test.skipIf(!process.env.SSL_TEST_LIVE_ACME)(
   "loads the public Let's Encrypt directory when live ACME access is enabled",
   async () => {
     const client = new AcmeClient({

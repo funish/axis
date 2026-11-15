@@ -80,16 +80,13 @@ export class MMDBMetadataParser {
       nodeByteSize: Math.floor((Number(metadata.record_size || 0) * 2) / 8),
       searchTreeSize:
         Number(metadata.node_count || 0) * Math.floor((Number(metadata.record_size || 0) * 2) / 8),
-      treeDepth: this.calculateTreeDepth(Number(metadata.node_count || 0)),
+      treeDepth:
+        Number(metadata.ip_version || 0) === 4
+          ? 32
+          : Number(metadata.ip_version || 0) === 6
+            ? 128
+            : 0,
     };
-  }
-
-  /**
-   * Calculate approximate tree depth based on node count
-   */
-  private static calculateTreeDepth(nodeCount: number): number {
-    if (nodeCount === 0) return 0;
-    return Math.ceil(Math.log2(nodeCount));
   }
 
   /**

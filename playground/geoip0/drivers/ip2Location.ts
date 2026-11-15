@@ -9,8 +9,13 @@ import type { QueryOptions } from "../../../packages/geoip0/src/types";
 
 console.log("ip2location.io Driver Examples\n");
 
+const apiKey = process.env.IP2LOCATION_API_KEY;
+if (!apiKey) {
+  throw new Error("Set IP2LOCATION_API_KEY to run this example");
+}
+
 // Initialize ip2location.io driver with manager
-const ip2Location = ip2LocationDriver();
+const ip2Location = ip2LocationDriver({ key: apiKey });
 const geoip = createGeoIPManager({ driver: ip2Location });
 
 // Test IPs
@@ -126,9 +131,7 @@ try {
 // Test with custom API key
 console.log(`\n--- Custom API Key Test ---`);
 try {
-  const ip2LocationCustom = ip2LocationDriver({
-    key: "4BDAB89AAD40944958DA8EBDBB1CC7F1", // Same as default for testing
-  });
+  const ip2LocationCustom = ip2LocationDriver({ key: apiKey });
   const geoipCustom = createGeoIPManager({ driver: ip2LocationCustom });
 
   const result = await geoipCustom.lookup("8.8.8.8");

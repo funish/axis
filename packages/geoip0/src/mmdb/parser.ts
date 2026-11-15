@@ -20,7 +20,7 @@ export class MMDBParser {
   private metadata: MMDBMetadata | null = null;
   private walker: MMDBWalker | null = null;
   private decoder: MMDBDecoder | null = null;
-  private cache: LRUCache<string, MMDBData> | null = null;
+  private cache: LRUCache<string, ParseResult> | null = null;
   private options: MMDBOptions;
 
   /**
@@ -89,11 +89,11 @@ export class MMDBParser {
     }
 
     // Check cache first
-    const cacheKey = `${ip}:full`;
+    const cacheKey = ip;
     if (this.cache) {
       const cached = this.cache.get(cacheKey);
       if (cached) {
-        return { data: cached as T, prefixLength: 0 };
+        return cached as ParseResult<T>;
       }
     }
 
@@ -116,7 +116,11 @@ export class MMDBParser {
       const [record, prefixLength] = this.walker!.walk(ipBytes);
 
       if (!record || !MMDBWalker.isDataPointer(record, this.metadata!.nodeCount)) {
-        return { data: null, prefixLength };
+        const missing: ParseResult<T> = { data: null, prefixLength };
+        if (this.cache) {
+          this.cache.set(cacheKey, missing as ParseResult<MMDBData>);
+        }
+        return missing;
       }
 
       // Resolve data pointer to actual data offset (same as original mmdb-lib)
@@ -131,9 +135,9 @@ export class MMDBParser {
         prefixLength,
       };
 
-      // Cache the result
-      if (this.cache && data) {
-        this.cache.set(cacheKey, data);
+      // Cache the result, including prefix length
+      if (this.cache) {
+        this.cache.set(cacheKey, parseResult as ParseResult<MMDBData>);
       }
 
       return parseResult;

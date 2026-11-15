@@ -1,6 +1,6 @@
 import { createHash, createHmac } from "node:crypto";
 
-import { classifyHttpError, UnsslError } from "./errors";
+import { classifyHttpError, SSLError } from "./errors";
 import type {
   AcmeAuthorization,
   AcmeChallenge,
@@ -35,7 +35,7 @@ export function pemToBase64UrlDer(pem: string): string {
     .replace(/-----END [^-]+-----/, "")
     .replace(/\s+/g, "");
   if (!base64) {
-    throw new UnsslError("PEM input does not contain DER data", {
+    throw new SSLError("PEM input does not contain DER data", {
       code: "invalid_request",
       provider: "acme",
     });
@@ -79,7 +79,7 @@ export function accountJwkThumbprint(accountJwk: Record<string, unknown>): strin
     .filter((key) => ["crv", "e", "kty", "n", "x", "y"].includes(key))
     .sort();
   if (keys.length === 0) {
-    throw new UnsslError(
+    throw new SSLError(
       "accountJwk must contain EC (crv/x/y) or RSA (e/kty/n) fields for ACME challenges",
       { code: "invalid_request", provider: "acme" },
     );
@@ -165,7 +165,7 @@ export class AcmeClient {
     try {
       response = await this.#fetch(url, init);
     } catch (error) {
-      throw new UnsslError(`Unable to connect to ACME endpoint: ${url}`, {
+      throw new SSLError(`Unable to connect to ACME endpoint: ${url}`, {
         code: "network",
         provider: this.provider,
         cause: error,
@@ -199,7 +199,7 @@ export class AcmeClient {
     const response = await this.request(this.directoryUrl, { method: "GET" });
     const directory = (await response.json()) as AcmeDirectory;
     if (!directory.newNonce || !directory.newAccount || !directory.newOrder) {
-      throw new UnsslError("ACME directory is missing required endpoints", {
+      throw new SSLError("ACME directory is missing required endpoints", {
         code: "provider_error",
         provider: this.provider,
         details: directory,
@@ -214,7 +214,7 @@ export class AcmeClient {
     const response = await this.request(directory.newNonce, { method: "HEAD" });
     const nonce = response.headers.get("replay-nonce");
     if (!nonce) {
-      throw new UnsslError("ACME nonce response did not include Replay-Nonce", {
+      throw new SSLError("ACME nonce response did not include Replay-Nonce", {
         code: "provider_error",
         provider: this.provider,
         status: response.status,
@@ -233,7 +233,7 @@ export class AcmeClient {
     options: { accountKey?: boolean; expectedStatus?: number[] } = {},
   ): Promise<Response> {
     if (!this.#signer) {
-      throw new UnsslError("ACME requests require an injected JWS signer", {
+      throw new SSLError("ACME requests require an injected JWS signer", {
         code: "not_supported",
         provider: this.provider,
       });
@@ -244,7 +244,7 @@ export class AcmeClient {
       const header: AcmeProtectedHeader = { alg: this.#signer.alg, nonce, url };
       if (options.accountKey) {
         if (!this.#accountJwk) {
-          throw new UnsslError("New ACME account requests require accountJwk", {
+          throw new SSLError("New ACME account requests require accountJwk", {
             code: "invalid_request",
             provider: this.provider,
           });
@@ -253,7 +253,7 @@ export class AcmeClient {
       } else {
         await this.account();
         if (!this.#accountUrl) {
-          throw new UnsslError("ACME account URL is unavailable", {
+          throw new SSLError("ACME account URL is unavailable", {
             code: "provider_error",
             provider: this.provider,
           });
@@ -281,7 +281,7 @@ export class AcmeClient {
           options.expectedStatus,
         );
       } catch (error) {
-        const nonce = error instanceof UnsslError ? error.nonce : undefined;
+        const nonce = error instanceof SSLError ? error.nonce : undefined;
         if (nonce && attempt < 2) {
           await this.nonceStore.put(nonce);
           continue;
@@ -293,7 +293,7 @@ export class AcmeClient {
       return response;
     }
 
-    throw new UnsslError("ACME server repeatedly rejected the replay nonce", {
+    throw new SSLError("ACME server repeatedly rejected the replay nonce", {
       code: "provider_error",
       provider: this.provider,
     });
@@ -303,7 +303,7 @@ export class AcmeClient {
     if (this.#accountUrl) return this.#accountUrl;
     const directory = await this.directory();
     if (!this.#signer || !this.#accountJwk) {
-      throw new UnsslError("ACME account registration requires signer and accountJwk", {
+      throw new SSLError("ACME account registration requires signer and accountJwk", {
         code: "invalid_request",
         provider: this.provider,
       });
@@ -345,7 +345,7 @@ export class AcmeClient {
     });
     const location = response.headers.get("location");
     if (!location) {
-      throw new UnsslError("ACME account response did not include Location", {
+      throw new SSLError("ACME account response did not include Location", {
         code: "provider_error",
         provider: this.provider,
         status: response.status,
@@ -388,7 +388,7 @@ export class AcmeClient {
 
   async refreshOrder(order: AcmeOrder): Promise<AcmeOrder> {
     if (!order.url) {
-      throw new UnsslError("ACME order has no URL for polling", {
+      throw new SSLError("ACME order has no URL for polling", {
         code: "invalid_request",
         provider: this.provider,
         details: order,
@@ -401,7 +401,7 @@ export class AcmeClient {
 
   async finalizeOrder(order: AcmeOrder, csrPem: string): Promise<AcmeOrder> {
     if (!order.finalize) {
-      throw new UnsslError("ACME order has no finalize URL", {
+      throw new SSLError("ACME order has no finalize URL", {
         code: "invalid_request",
         provider: this.provider,
         details: order,
@@ -418,7 +418,7 @@ export class AcmeClient {
 
   async certificate(order: AcmeOrder): Promise<string> {
     if (!order.certificate) {
-      throw new UnsslError("ACME order has no certificate URL", {
+      throw new SSLError("ACME order has no certificate URL", {
         code: "invalid_request",
         provider: this.provider,
         details: order,
@@ -431,7 +431,7 @@ export class AcmeClient {
   async revoke(certificatePem: string, reason: RevokeReason = "unspecified"): Promise<void> {
     const directory = await this.directory();
     if (!directory.revokeCert) {
-      throw new UnsslError("ACME directory does not expose revocation", {
+      throw new SSLError("ACME directory does not expose revocation", {
         code: "not_supported",
         provider: this.provider,
       });

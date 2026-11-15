@@ -1,24 +1,16 @@
 import { ofetch } from "ofetch";
 
-import type {
-  Driver,
-  DNSRecord,
-  DNSRecordInput,
-  DriverOptions,
-  RecordOptions,
-  DOHResponse,
-} from "..";
+import type { Driver, DNSRecord, DriverOptions, RecordOptions, DOHResponse } from "..";
+import { UNDNS_ERROR_CODES, UndnsError, toUndnsError } from "../errors";
 
 export interface DOHDriverOptions extends DriverOptions {
   endpoint?: string;
   timeout?: number;
 }
 
-// Default DOH endpoint
-const DEFAULT_ENDPOINT = "https://one.one.one.one/dns-query";
+export const DEFAULT_DOH_ENDPOINT = "https://one.one.one.one/dns-query";
 
-// DNS type mapping: string to number
-const DNS_TYPE_NUMBERS: Record<string, number> = {
+export const DNS_TYPE_NUMBERS: Record<string, number> = {
   A: 1,
   AAAA: 28,
   CNAME: 5,
@@ -29,237 +21,322 @@ const DNS_TYPE_NUMBERS: Record<string, number> = {
   SRV: 33,
   PTR: 12,
   CAA: 257,
+  NAPTR: 35,
+  TLSA: 52,
 };
 
-export default function dohDriver(options: DOHDriverOptions = {}): Driver {
-  const { endpoint = DEFAULT_ENDPOINT, timeout = 5000 } = options;
+export const DNS_TYPE_STRINGS: Record<number, string> = Object.fromEntries(
+  Object.entries(DNS_TYPE_NUMBERS).map(([name, number]) => [number, name]),
+);
 
-  // Helper to build full hostname from domain and subdomain
+export function getDnsTypeNumber(type: string): number {
+  const number = DNS_TYPE_NUMBERS[type.toUpperCase()];
+  if (number === undefined) {
+    throw new UndnsError(
+      UNDNS_ERROR_CODES.unsupportedRecordType,
+      `Unsupported DNS record type: ${type}`,
+      { details: { type } },
+    );
+  }
+  return number;
+}
+
+export function getDnsTypeString(typeNumber: number): string {
+  const type = DNS_TYPE_STRINGS[typeNumber];
+  if (!type) {
+    throw new UndnsError(
+      UNDNS_ERROR_CODES.unsupportedRecordType,
+      `Unsupported DNS record type number: ${typeNumber}`,
+      { details: { typeNumber } },
+    );
+  }
+  return type;
+}
+
+function parseTxt(data: string): string[] {
+  const quoted = [...data.matchAll(/"((?:\\.|[^"\\])*)"/g)].map((match) =>
+    match[1]!.replace(/\\"/g, '"').replace(/\\\\/g, "\\"),
+  );
+  return quoted.length > 0 ? quoted : [data];
+}
+
+function parseHex(data: string): ArrayBuffer {
+  const normalized = data.replace(/[\s-]/g, "");
+  if (!/^(?:[0-9a-fA-F]{2})+$/.test(normalized)) {
+    throw new UndnsError(
+      UNDNS_ERROR_CODES.invalidProviderResponse,
+      `Invalid TLSA certificate data: ${data}`,
+    );
+  }
+  const certificate = Uint8Array.from(
+    normalized.match(/../g)!.map((byte) => Number.parseInt(byte, 16)),
+  );
+  const buffer = new ArrayBuffer(certificate.length);
+  new Uint8Array(buffer).set(certificate);
+  return buffer;
+}
+
+function parseNumberParts(data: string, expected: number, typeName: string): string[] {
+  const parts = data.trim().split(/\s+/);
+  if (parts.length < expected) {
+    throw new UndnsError(
+      UNDNS_ERROR_CODES.invalidProviderResponse,
+      `Invalid ${typeName} record format: ${data}`,
+    );
+  }
+  return parts;
+}
+
+/** Parse one DoH JSON answer into the unified record model. */
+export function parseDohAnswer(answer: { type: number; TTL?: number; data: string }): DNSRecord {
+  const typeName = getDnsTypeString(answer.type);
+  const ttl = answer.TTL ?? 0;
+  const data = answer.data;
+
+  switch (typeName) {
+    case "A":
+    case "AAAA":
+      return { type: typeName, address: data, ttl };
+    case "CNAME":
+    case "NS":
+    case "PTR":
+      return { type: typeName, value: data, ttl };
+    case "MX": {
+      const [priority = "", ...exchange] = parseNumberParts(data, 2, typeName);
+      return { type: typeName, priority: Number(priority), exchange: exchange.join(" "), ttl };
+    }
+    case "TXT":
+      return { type: typeName, entries: parseTxt(data), ttl };
+    case "SOA": {
+      const parts = parseNumberParts(data, 7, typeName);
+      return {
+        type: typeName,
+        nsname: parts[0]!,
+        hostmaster: parts[1]!,
+        serial: Number(parts[2]),
+        refresh: Number(parts[3]),
+        retry: Number(parts[4]),
+        expire: Number(parts[5]),
+        minttl: Number(parts[6]),
+        ttl,
+      };
+    }
+    case "SRV": {
+      const parts = parseNumberParts(data, 4, typeName);
+      return {
+        type: typeName,
+        priority: Number(parts[0]),
+        weight: Number(parts[1]),
+        port: Number(parts[2]),
+        name: parts.slice(3).join(" "),
+        ttl,
+      };
+    }
+    case "CAA": {
+      const parts = parseNumberParts(data, 3, typeName);
+      const critical = Number(parts[0]);
+      const tag = parts[1]!;
+      const value = parts.slice(2).join(" ").replace(/^"|"$/g, "");
+      if (!["issue", "issuewild", "iodef"].includes(tag)) {
+        throw new UndnsError(
+          UNDNS_ERROR_CODES.invalidProviderResponse,
+          `Unsupported CAA tag: ${tag}`,
+          { details: { tag } },
+        );
+      }
+      return { type: typeName, critical, [tag]: value, ttl };
+    }
+    case "NAPTR": {
+      const match = data.match(
+        /^(\d+)\s+(\d+)\s+"([^"]*)"\s+"([^"]*)"\s+"((?:[^"\\]|\\.)*)"\s+(\S+)$/,
+      );
+      if (!match) {
+        throw new UndnsError(
+          UNDNS_ERROR_CODES.invalidProviderResponse,
+          `Invalid NAPTR record format: ${data}`,
+        );
+      }
+      return {
+        type: typeName,
+        order: Number(match[1]),
+        preference: Number(match[2]),
+        flags: match[3]!,
+        service: match[4]!,
+        regexp: match[5]!,
+        replacement: match[6]!,
+        ttl,
+      };
+    }
+    case "TLSA": {
+      const parts = parseNumberParts(data, 4, typeName);
+      return {
+        type: typeName,
+        certUsage: Number(parts[0]),
+        selector: Number(parts[1]),
+        match: Number(parts[2]),
+        data: parseHex(parts.slice(3).join(" ")),
+        ttl,
+      };
+    }
+    default:
+      return { type: typeName, data } as unknown as DNSRecord;
+  }
+}
+
+/** Parse a DoH JSON payload and preserve NXDOMAIN separately from NOERROR-empty. */
+export function parseDohResponse(response: DOHResponse, requestedType: string): DNSRecord[] {
+  if (
+    typeof response !== "object" ||
+    response === null ||
+    !Number.isFinite(Number(response.Status))
+  ) {
+    throw new UndnsError(
+      UNDNS_ERROR_CODES.invalidProviderResponse,
+      "DoH response is missing a valid DNS status",
+    );
+  }
+
+  const status = Number(response.Status);
+  if (status === 3) {
+    throw new UndnsError(UNDNS_ERROR_CODES.nameNotFound, "DNS name does not exist", {
+      status,
+      details: { requestedType },
+    });
+  }
+  if (status !== 0) {
+    throw new UndnsError(
+      UNDNS_ERROR_CODES.providerError,
+      response.Error || `DNS query failed with status ${status}`,
+      {
+        status,
+        providerMessage: response.Error,
+        details: { requestedType },
+      },
+    );
+  }
+  if (response.Error) {
+    throw new UndnsError(UNDNS_ERROR_CODES.providerError, response.Error, {
+      status,
+      details: { requestedType },
+    });
+  }
+
+  const answers = response.Answer ?? [];
+  if (!Array.isArray(answers)) {
+    throw new UndnsError(
+      UNDNS_ERROR_CODES.invalidProviderResponse,
+      "DoH Answer section is not an array",
+    );
+  }
+
+  const records = answers.map(parseDohAnswer);
+  getDnsTypeNumber(requestedType);
+  return records.filter((record) => record.type === requestedType || record.type === "CNAME");
+}
+
+async function fetchDohResponse(
+  endpoint: string,
+  hostname: string,
+  type: string,
+  timeout: number,
+): Promise<DOHResponse> {
+  const url = new URL(endpoint);
+  url.searchParams.set("name", hostname);
+  url.searchParams.set("type", type);
+
+  try {
+    return await ofetch<DOHResponse>(url.toString(), {
+      method: "GET",
+      headers: { Accept: "application/dns-json" },
+      timeout,
+    });
+  } catch (error) {
+    throw toUndnsError(error, `DoH query failed for ${hostname} ${type}`, {
+      provider: "doh",
+      details: { hostname, type },
+    });
+  }
+}
+
+export default function dohDriver(options: DOHDriverOptions = {}): Driver {
+  const { endpoint = DEFAULT_DOH_ENDPOINT, timeout = 5000 } = options;
+
   function buildHostname(domain: string, subdomain?: string): string {
     if (!subdomain) return domain;
     return subdomain.includes(".") ? subdomain : `${subdomain}.${domain}`;
   }
 
-  // Get DNS type number from string
-  function getDnsTypeNumber(type: string): number {
-    return DNS_TYPE_NUMBERS[type.toUpperCase()] || 1;
+  async function query(hostname: string, type: string): Promise<DNSRecord[]> {
+    const normalizedType = type.toUpperCase();
+    getDnsTypeNumber(normalizedType);
+    const response = await fetchDohResponse(endpoint, hostname, normalizedType, timeout);
+    return parseDohResponse(response, normalizedType);
   }
 
-  // Fetch DOH records from endpoint
-  async function fetchDOHRecords(hostname: string, recordType: string): Promise<DOHResponse> {
-    const url = new URL(endpoint);
-    url.searchParams.set("name", hostname);
-    url.searchParams.set("type", recordType);
+  const getRecords = async (
+    domain: string,
+    recordOptions?: RecordOptions,
+  ): Promise<DNSRecord[]> => {
+    const hostname = buildHostname(domain, recordOptions?.name);
+    if (recordOptions?.type) return query(hostname, recordOptions.type);
 
-    return await ofetch<DOHResponse>(url.toString(), {
-      method: "GET",
-      headers: {
-        Accept: "application/dns-json",
-      },
-      timeout,
-    });
-  }
+    const recordTypes = ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SOA"];
+    const settled = await Promise.allSettled(recordTypes.map((type) => query(hostname, type)));
+    const fulfilled = settled.flatMap((result) =>
+      result.status === "fulfilled" ? result.value : [],
+    );
 
-  // Convert DOH data to DNSRecord based on type
-  function convertDataToRecord(data: string, recordType: string, ttl: number): DNSRecord {
-    const upperType = recordType.toUpperCase();
+    if (fulfilled.length > 0) return fulfilled;
 
-    switch (upperType) {
-      case "A":
-        return {
-          type: "A",
-          address: data,
-          ttl: ttl,
-        };
+    const failures = settled.flatMap((result) =>
+      result.status === "rejected" ? [result.reason] : [],
+    );
+    if (failures.length === 0) return [];
 
-      case "AAAA":
-        return {
-          type: "AAAA",
-          address: data,
-          ttl: ttl,
-        };
-
-      case "CNAME":
-        return {
-          type: "CNAME",
-          value: data,
-        };
-
-      case "NS":
-        return {
-          type: "NS",
-          value: data,
-        };
-
-      case "PTR":
-        return {
-          type: "PTR",
-          value: data,
-        };
-
-      case "MX": {
-        const mxMatch = data.match(/^(\d+)\s+(.+)$/);
-        if (mxMatch) {
-          return {
-            type: "MX",
-            priority: parseInt(mxMatch[1]),
-            exchange: mxMatch[2],
-          };
-        }
-        throw new Error(`Invalid MX record format: ${data}`);
-      }
-
-      case "TXT":
-        return {
-          type: "TXT",
-          entries: [data],
-        };
-
-      case "SOA": {
-        const parts = data.split(/\s+/);
-        if (parts.length >= 7) {
-          return {
-            type: "SOA",
-            nsname: parts[0],
-            hostmaster: parts[1],
-            serial: parseInt(parts[2]),
-            refresh: parseInt(parts[3]),
-            retry: parseInt(parts[4]),
-            expire: parseInt(parts[5]),
-            minttl: parseInt(parts[6]),
-          };
-        }
-        throw new Error(`Invalid SOA record format: ${data}`);
-      }
-
-      case "CAA": {
-        const caaMatch = data.match(/^(\d+)\s+(\d+)\s+"([^"]*)"$/);
-        if (caaMatch) {
-          const critical = parseInt(caaMatch[1]);
-          const tag = caaMatch[2];
-          const value = caaMatch[3];
-
-          const record = {
-            type: "CAA" as const,
-            critical,
-            // Standard CaaRecord fields based on tag
-            ...(tag === "issue" && { issue: value }),
-            ...(tag === "iodef" && { iodef: value }),
-            ...(tag === "issuewild" && { issuewild: value }),
-          };
-          return record;
-        }
-        throw new Error(`Invalid CAA record format: ${data}`);
-      }
-
-      case "SRV": {
-        const srvMatch = data.match(/^(\d+)\s+(\d+)\s+(\d+)\s+(.+)$/);
-        if (srvMatch) {
-          return {
-            type: "SRV",
-            priority: parseInt(srvMatch[1]),
-            weight: parseInt(srvMatch[2]),
-            port: parseInt(srvMatch[3]),
-            name: srvMatch[4],
-          };
-        }
-        throw new Error(`Invalid SRV record format: ${data}`);
-      }
-
-      default:
-        // For unsupported types, create a basic record structure
-        return {
-          type: upperType as any,
-          data: data,
-        } as any;
-    }
-  }
-
-  // Parse DOH answers to DNSRecord[]
-  function parseDOHAnswers(
-    answers: Array<{ type: number; data: string; TTL: number }>,
-    recordType: string,
-  ): DNSRecord[] {
-    const typeNum = getDnsTypeNumber(recordType);
-
-    return answers
-      .filter((answer) => answer.type === typeNum)
-      .map((answer) => convertDataToRecord(answer.data, recordType, answer.TTL));
-  }
-
-  // Get records method
-  const getRecords = async (domain: string, options?: RecordOptions): Promise<DNSRecord[]> => {
-    const hostname = buildHostname(domain, options?.name);
-    const recordTypes = options?.type
-      ? [options.type]
-      : ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SOA"];
-
-    const allRecords: DNSRecord[] = [];
-
-    for (const type of recordTypes) {
-      try {
-        const response = await fetchDOHRecords(hostname, type);
-
-        if (response.Status === 0 && response.Answer) {
-          const records = parseDOHAnswers(response.Answer, type);
-          allRecords.push(...records);
-        }
-      } catch {
-        // Skip failed record types, continue with others
-        continue;
-      }
-    }
-
-    return allRecords;
+    const nonNxdomain = failures.find(
+      (error) => !(error instanceof UndnsError) || error.code !== UNDNS_ERROR_CODES.nameNotFound,
+    );
+    throw toUndnsError(nonNxdomain ?? failures[0], `DoH query failed for ${hostname}`);
   };
 
   return {
     name: "doh",
     options,
+    capabilities: {
+      read: true,
+      write: false,
+      upsert: false,
+      batchWrite: false,
+      nxdomain: true,
+    },
 
-    // Read operations
     getRecords,
 
-    getRecord: async (domain: string, options?: RecordOptions): Promise<DNSRecord | null> => {
+    async getRecord(domain: string, recordOptions?: RecordOptions): Promise<DNSRecord | null> {
       try {
-        const records = await getRecords(domain, options);
-        return records[0] || null;
-      } catch {
-        return null;
+        return (await getRecords(domain, recordOptions))[0] ?? null;
+      } catch (error) {
+        if (error instanceof UndnsError && error.code === UNDNS_ERROR_CODES.nameNotFound)
+          return null;
+        throw error;
       }
     },
 
-    hasRecord: async (
+    async hasRecord(
       domain: string,
-      options: RecordOptions & { type: string },
-    ): Promise<boolean> => {
+      recordOptions: RecordOptions & { type: string },
+    ): Promise<boolean> {
       try {
-        const records = await getRecords(domain, options);
-        return records.length > 0;
-      } catch {
-        return false;
+        return (await getRecords(domain, recordOptions)).length > 0;
+      } catch (error) {
+        if (error instanceof UndnsError && error.code === UNDNS_ERROR_CODES.nameNotFound)
+          return false;
+        throw error;
       }
-    },
-
-    // Write operations - not supported by DOH (read-only protocol)
-    setRecord: async (_domain: string, _record: DNSRecordInput): Promise<DNSRecord> => {
-      throw new Error("DOH driver is read-only: cannot set records");
-    },
-
-    setRecords: async (_domain: string, _records: DNSRecordInput[]): Promise<DNSRecord[]> => {
-      throw new Error("DOH driver is read-only: cannot set records");
-    },
-
-    removeRecord: async (_domain: string, _record: DNSRecord): Promise<void> => {
-      throw new Error("DOH driver is read-only: cannot remove records");
-    },
-
-    removeRecords: async (_domain: string, _records: DNSRecord[]): Promise<void> => {
-      throw new Error("DOH driver is read-only: cannot remove records");
     },
 
     dispose: async (): Promise<void> => {
-      // No cleanup needed for DOH driver
+      // DoH requests do not keep a reusable undns-owned handle open.
     },
   };
 }

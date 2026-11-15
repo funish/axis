@@ -1,10 +1,10 @@
-# UnSSL
+# unssl
 
 Unified TLS certificate lifecycle orchestration with vendor-specific drivers and injected dependencies.
 
 ## Driver contract
 
-Drivers follow the repository's optional-method pattern: implement only the operations the provider actually supports. `createSSLManager` rejects unsupported calls with a stable `UnsslError` instead of relying on duplicated metadata.
+Drivers follow the repository's optional-method pattern: implement only the operations the provider actually supports. `createSSLManager` rejects unsupported calls with a stable `SSLError` instead of relying on duplicated metadata.
 
 Supported operations are:
 
@@ -52,6 +52,10 @@ const certificate = await ssl.issue({
 ```
 
 The callback receives either an HTTP-01 challenge with `path` and `content`, or a DNS-01 challenge with `recordName` and `recordValue`. `manager.putDns01Challenge` and `manager.removeDns01Challenge` can use an injected `DnsRecordOperations` adapter.
+
+After every pending authorization is valid, the driver polls the order through `ready`, sends finalize once, and then polls `processing` until `valid`. An order already in `processing` or `valid` is never finalized again.
+
+Polling uses 1 second by default. Set `pollIntervalMs` at driver level or per issue; `0` means poll without delay, while omitting it uses the next configured value or the default.
 
 ## ACME provider drivers
 
@@ -106,7 +110,7 @@ const origin = cloudflareOriginCaDriver({
 });
 ```
 
-ZeroSSL validation callbacks receive the challenge objects before the driver asks the provider to verify:
+ZeroSSL validation callbacks receive all challenges for the selected method before the driver asks the provider to verify. This differs from ACME, whose callbacks are invoked per authorization challenge:
 
 ```typescript
 await ssl.issue({
@@ -119,11 +123,13 @@ await ssl.issue({
       // Publish each challenge.path / challenge.content or CNAME record.
     },
     onValidationComplete: async (challenges) => {
-      // Clean up validation artifacts.
+      // Clean up validation artifacts after issuance completes.
     },
   },
 });
 ```
+
+ZeroSSL REST polling uses 2 seconds by default. Set `pollIntervalMs` at driver level or per validation; `0` means poll without delay, while omitting it uses the next configured value or the default.
 
 - **testing** — deterministic in-memory issue/renew/revoke/deployment/challenge driver for tests.
 
@@ -131,7 +137,7 @@ BuyPass is intentionally absent: its SSL/ACME service was discontinued.
 
 ## Dependency injection
 
-UnSSL does not read private keys or operate DNS itself. `JwsSigner`, `NonceStore`, `KeyStorage`, `HttpFetch`, polling, and DNS adapters are supplied by the application.
+SSL does not read private keys or operate DNS itself. `JwsSigner`, `NonceStore`, `HttpFetch`, polling, and DNS adapters are supplied by the application.
 
 ```typescript
 import { createSSLManager } from "unssl";
@@ -139,12 +145,11 @@ import testingDriver from "unssl/drivers/testing";
 
 const ssl = createSSLManager({
   driver: testingDriver(),
-  // keyStorage: optional application-controlled storage adapter
   // dns: optional getRecords/setRecord/upsertRecord/removeRecord adapter
 });
 ```
 
-`KeyStorage` is only an interface. Implementations must remain outside this package because key-material isolation is application and platform policy.
+The exported `KeyStorage` interface is for application-owned adapters. It is intentionally not accepted by `createSSLManager`: SSL does not generate private keys, and storage policy must remain in the application or a driver-specific option.
 
 ## DNS-01
 
@@ -163,11 +168,11 @@ The manager can put and remove the derived TXT value through that interface. Pro
 
 ## Live fixtures
 
-Protocol fixtures do not touch the network. Set `UNSSL_TEST_LIVE_ACME=1` to run the public directory discovery check; other live issuance paths require provider accounts and are not enabled by default.
+Protocol fixtures do not touch the network. Set `SSL_TEST_LIVE_ACME=1` to run the public directory discovery check; other live issuance paths require provider accounts and are not enabled by default.
 
 ## Errors
 
-All failures use `UnsslError` with stable `code` values: `invalid_request`, `unauthorized`, `not_found`, `rate_limited`, `challenge_failed`, `not_supported`, `network`, `provider_error`, `key_storage`, and `disposed`.
+All failures use `SSLError` with stable `code` values: `invalid_request`, `unauthorized`, `not_found`, `rate_limited`, `challenge_failed`, `not_supported`, `network`, `provider_error`, `key_storage`, and `disposed`.
 
 ## Dispose
 

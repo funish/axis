@@ -287,3 +287,44 @@ export interface RdapOptions {
    */
   fetchOptions?: RequestInit;
 }
+/**
+ * RDAP client options
+ */
+export interface RdapOptions {
+  /**
+   * Base URL for RDAP service
+   * If not provided, will use bootstrap service
+   */
+  baseUrl?: string;
+
+  /**
+   * Query type
+   * If not provided, will auto-detect based on query format
+   */
+  type?: RdapQueryType;
+
+  /**
+   * Fetch options
+   */
+  fetchOptions?: RequestInit;
+
+  /**
+   * Bootstrap refresh and cache options
+   */
+  bootstrap?: RdapBootstrapOptions;
+}
+
+/**
+ * Options for refreshing IANA bootstrap metadata.
+ */
+export interface RdapBootstrapOptions {
+  /**
+   * Fetch fresh metadata instead of using bundled data.
+   */
+  fetch?: boolean;
+
+  /**
+   * Lifetime of fetched metadata in milliseconds. Defaults to one hour.
+   */
+  ttlMs?: number;
+}

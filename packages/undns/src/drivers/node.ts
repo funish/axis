@@ -6,164 +6,101 @@ import type {
   CaaRecord,
   SrvRecord,
   MxRecord,
+  TlsaRecord,
 } from "node:dns";
 
-import type {
-  Driver,
-  DNSRecord,
-  DNSRecordInput,
-  DriverOptions,
-  RecordOptions,
-  RawDNSResult,
-} from "..";
+import type { Driver, DNSRecord, DriverOptions, RecordOptions, RawDNSResult } from "..";
+import { UNDNS_ERROR_CODES, UndnsError, toUndnsError } from "../errors";
 
 export interface NodeDriverOptions extends DriverOptions, ResolverOptions {
   servers?: string[];
 }
 
 export default function nodeDriver(options: NodeDriverOptions = {}): Driver {
-  // Create DNS resolver with options
   const resolver = new dnsPromises.Resolver(options);
 
   if (options.servers) {
     resolver.setServers(options.servers);
   }
 
-  // Helper to build full hostname from domain and subdomain
   const buildHostname = (domain: string, subdomain?: string): string => {
     if (!subdomain) return domain;
     return subdomain.includes(".") ? subdomain : `${subdomain}.${domain}`;
   };
 
-  // Get records method using the complete resolve function
-  const getRecords = async (domain: string, options?: RecordOptions): Promise<DNSRecord[]> => {
-    const hostname = buildHostname(domain, options?.name);
+  function isNameNotFound(error: unknown): boolean {
+    return (
+      typeof error === "object" &&
+      error !== null &&
+      (error as NodeJS.ErrnoException).code === "ENOTFOUND"
+    );
+  }
+
+  const getRecords = async (
+    domain: string,
+    recordOptions?: RecordOptions,
+  ): Promise<DNSRecord[]> => {
+    const hostname = buildHostname(domain, recordOptions?.name);
     const records: DNSRecord[] = [];
+    const recordTypes = recordOptions?.type
+      ? [recordOptions.type.toUpperCase()]
+      : ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SOA", "SRV", "CAA", "NAPTR", "TLSA"];
 
-    try {
-      const recordTypes = options?.type
-        ? [options.type]
-        : ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SOA", "SRV", "CAA", "NAPTR", "TLSA"];
+    for (const type of recordTypes) {
+      let result: RawDNSResult;
+      try {
+        result = (await resolver.resolve(hostname, type)) as RawDNSResult;
+      } catch (error) {
+        if (isNameNotFound(error)) {
+          throw toUndnsError(error, `DNS name does not exist: ${hostname}`, {
+            code: UNDNS_ERROR_CODES.nameNotFound,
+            provider: "node",
+            details: { hostname, type },
+          });
+        }
+        // ENODATA means NOERROR with no records for this type; other types may still exist.
+        continue;
+      }
 
-      for (const type of recordTypes) {
-        try {
-          const results = (await resolver.resolve(hostname, type)) as RawDNSResult;
-
-          // Convert Node.js results to our unified format
-          if (type === "SOA") {
-            // SOA returns a single object, convert to AnySoaRecord
-            const soaResult = results as SoaRecord;
-            records.push({
-              type: "SOA",
-              nsname: soaResult.nsname,
-              hostmaster: soaResult.hostmaster,
-              serial: soaResult.serial,
-              refresh: soaResult.refresh,
-              retry: soaResult.retry,
-              expire: soaResult.expire,
-              minttl: soaResult.minttl,
-            });
-          } else if (type === "TXT") {
-            // TXT returns string[][], convert to AnyTxtRecord[]
-            const txtResults = results as string[][];
-            txtResults.forEach((entries) => {
-              records.push({
-                type: "TXT",
-                entries,
-              });
-            });
-          } else if (type === "MX") {
-            // MX returns array of MX records
-            const mxRecords = results as unknown as MxRecord[];
-            mxRecords.forEach((record) => {
-              records.push({
-                type: "MX",
-                priority: record.priority,
-                exchange: record.exchange,
-              });
-            });
-          } else if (type === "SRV") {
-            // SRV returns array of SRV records
-            const srvRecords = results as unknown as SrvRecord[];
-            srvRecords.forEach((record) => {
-              records.push({
-                type: "SRV",
-                priority: record.priority,
-                weight: record.weight,
-                port: record.port,
-                name: record.name,
-              });
-            });
-          } else if (type === "CAA") {
-            // CAA returns array of CAA records
-            const caaRecords = results as unknown as CaaRecord[];
-            caaRecords.forEach((record) => {
-              records.push({
-                type: "CAA",
-                critical: record.critical,
-                issue: record.issue,
-                iodef: record.iodef,
-                issuewild: record.issuewild,
-                contactemail: record.contactemail,
-                contactphone: record.contactphone,
-              });
-            });
-          } else if (type === "NAPTR") {
-            // NAPTR returns array of NAPTR records
-            const naptrRecords = results as unknown as NaptrRecord[];
-            naptrRecords.forEach((record) => {
-              records.push({
-                type: "NAPTR",
-                flags: record.flags,
-                service: record.service,
-                regexp: record.regexp,
-                replacement: record.replacement,
-                order: record.order,
-                preference: record.preference,
-              });
-            });
-          } else {
-            // A, AAAA, CNAME, NS, PTR return string[]
-            const stringResults = results as string[];
-            stringResults.forEach((result) => {
-              if (type === "A") {
-                records.push({
-                  type: "A",
-                  address: result,
-                  ttl: 0, // Default TTL, could be enhanced with resolve4 options
-                });
-              } else if (type === "AAAA") {
-                records.push({
-                  type: "AAAA",
-                  address: result,
-                  ttl: 0, // Default TTL, could be enhanced with resolve6 options
-                });
-              } else if (type === "CNAME") {
-                records.push({
-                  type: "CNAME",
-                  value: result,
-                });
-              } else if (type === "NS") {
-                records.push({
-                  type: "NS",
-                  value: result,
-                });
-              } else if (type === "PTR") {
-                records.push({
-                  type: "PTR",
-                  value: result,
-                });
-              }
-            });
-          }
-        } catch {
-          // Skip if record type doesn't exist
-          continue;
+      if (type === "SOA") {
+        const record = result as SoaRecord;
+        records.push({ type, ...record });
+      } else if (type === "TXT") {
+        for (const entries of result as string[][]) {
+          records.push({ type, entries });
+        }
+      } else if (type === "MX") {
+        for (const record of result as unknown as MxRecord[]) {
+          records.push({ type, priority: record.priority, exchange: record.exchange });
+        }
+      } else if (type === "SRV") {
+        for (const record of result as unknown as SrvRecord[]) {
+          records.push({
+            type,
+            priority: record.priority,
+            weight: record.weight,
+            port: record.port,
+            name: record.name,
+          });
+        }
+      } else if (type === "CAA") {
+        for (const record of result as unknown as CaaRecord[]) {
+          records.push({ type, ...record });
+        }
+      } else if (type === "NAPTR") {
+        for (const record of result as unknown as NaptrRecord[]) {
+          records.push({ type, ...record });
+        }
+      } else if (type === "TLSA") {
+        for (const record of result as unknown as TlsaRecord[]) {
+          records.push({ type, ...record });
+        }
+      } else {
+        for (const value of result as string[]) {
+          if (type === "A" || type === "AAAA") records.push({ type, address: value, ttl: 0 });
+          else records.push({ type: type as "CNAME" | "NS" | "PTR", value });
         }
       }
-    } catch {
-      // Return empty array on major errors
-      return [];
     }
 
     return records;
@@ -172,44 +109,37 @@ export default function nodeDriver(options: NodeDriverOptions = {}): Driver {
   return {
     name: "node",
     options,
+    capabilities: {
+      read: true,
+      write: false,
+      upsert: false,
+      batchWrite: false,
+      nxdomain: true,
+    },
 
-    // Read operations
     getRecords,
-    getRecord: async (
-      domain: string,
-      options?: { name?: string; type?: string },
-    ): Promise<DNSRecord | null> => {
+
+    async getRecord(domain: string, recordOptions?: RecordOptions): Promise<DNSRecord | null> {
       try {
-        const records = await getRecords(domain, options);
-        return records[0] || null;
-      } catch {
-        return null;
-      }
-    },
-    hasRecord: async (
-      domain: string,
-      options: RecordOptions & { type: string },
-    ): Promise<boolean> => {
-      try {
-        const records = await getRecords(domain, options);
-        return records.length > 0;
-      } catch {
-        return false;
+        return (await getRecords(domain, recordOptions))[0] ?? null;
+      } catch (error) {
+        if (error instanceof UndnsError && error.code === UNDNS_ERROR_CODES.nameNotFound)
+          return null;
+        throw error;
       }
     },
 
-    // Write operations - not supported
-    setRecord: async (_domain: string, _record: DNSRecordInput): Promise<DNSRecord> => {
-      throw new Error("Node.js DNS driver is read-only: cannot set records");
-    },
-    setRecords: async (_domain: string, _records: DNSRecordInput[]): Promise<DNSRecord[]> => {
-      throw new Error("Node.js DNS driver is read-only: cannot set records");
-    },
-    removeRecord: async (_domain: string, _record: DNSRecord): Promise<void> => {
-      throw new Error("Node.js DNS driver is read-only: cannot remove records");
-    },
-    removeRecords: async (_domain: string, _records: DNSRecord[]): Promise<void> => {
-      throw new Error("Node.js DNS driver is read-only: cannot remove records");
+    async hasRecord(
+      domain: string,
+      recordOptions: RecordOptions & { type: string },
+    ): Promise<boolean> {
+      try {
+        return (await getRecords(domain, recordOptions)).length > 0;
+      } catch (error) {
+        if (error instanceof UndnsError && error.code === UNDNS_ERROR_CODES.nameNotFound)
+          return false;
+        throw error;
+      }
     },
   };
 }

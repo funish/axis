@@ -4,9 +4,19 @@
  */
 
 import { queryIP } from "rdap";
-import type { RdapIpNetwork } from "rdap";
+import type { RdapEntity, RdapIpNetwork, VCardProperty } from "rdap";
 
-import type { Driver, DriverOptions, GeoLocation, QueryOptions } from "..";
+import type {
+  BatchQueryOptions,
+  Driver,
+  DriverCapabilities,
+  DriverOptions,
+  GeoLocation,
+  QueryOptions,
+} from "..";
+import { mapBatches, resolveBatchOptions } from "../batch";
+import { createProviderError } from "../errors";
+import { normalizeGeoLocation, type RawGeoLocation } from "../normalize";
 
 export interface RdapDriverOptions extends DriverOptions {
   /**
@@ -18,242 +28,108 @@ export interface RdapDriverOptions extends DriverOptions {
    * Fetch options for RDAP requests
    */
   fetchOptions?: RequestInit;
+  batchSize?: number;
+  concurrency?: number;
+}
+
+const SOURCE = "rdap";
+
+function organization(entities?: RdapEntity[]): string | undefined {
+  for (const entity of entities || []) {
+    const vcard = entity.vcardArray?.[1];
+    if (!vcard) {
+      continue;
+    }
+
+    const properties = vcard as VCardProperty[];
+    const org = properties.find((property) => property[0] === "org")?.[3];
+    const name = properties.find((property) => property[0] === "fn")?.[3];
+    const value = org || name;
+    if (value?.trim()) {
+      return value.trim();
+    }
+  }
+
+  return undefined;
+}
+
+function extractGeoLocation(
+  response: RdapIpNetwork,
+  ip: string,
+  queryOptions?: QueryOptions,
+): GeoLocation | null {
+  const countryCode =
+    response.country && /^[A-Z]{2}$/i.test(response.country)
+      ? response.country.toUpperCase()
+      : undefined;
+
+  const raw: RawGeoLocation = {
+    ip: ip || response.startAddress,
+    source: SOURCE,
+    country: response.country,
+    countryCode,
+    org: response.name || organization(response.entities),
+    isp: response.name,
+  };
+
+  return normalizeGeoLocation(raw, queryOptions);
 }
 
 export default function rdapDriver(options: RdapDriverOptions = {}): Driver<RdapDriverOptions> {
-  const { baseUrl, fetchOptions } = options;
-
-  /**
-   * Extract geolocation information from RDAP IP network response
-   */
-  const extractGeoLocation = (rdapResponse: RdapIpNetwork, ip?: string): GeoLocation => {
-    const location: GeoLocation = {
-      ip: ip ?? rdapResponse.startAddress,
-      country: "",
-      countryCode: "",
-      region: "",
-      regionCode: "",
-      city: "",
-      latitude: 0,
-      longitude: 0,
-      isp: "",
-      org: "",
-      asn: "",
-      timezone: "",
-      source: "rdap",
-      accuracyRadius: "",
-      isProxy: false,
-    };
-
-    // Extract country information
-    if (rdapResponse.country) {
-      location.country = rdapResponse.country;
-      location.countryCode = rdapResponse.country;
-    }
-
-    // Extract network information for ISP/organization
-    if (rdapResponse.name) {
-      location.isp = rdapResponse.name;
-      location.org = rdapResponse.name;
-    }
-
-    if (rdapResponse.type) {
-      location.org = location.org ? `${location.org} (${rdapResponse.type})` : rdapResponse.type;
-    }
-
-    // Extract information from entities
-    if (rdapResponse.entities) {
-      for (const entity of rdapResponse.entities) {
-        // Look for registrant or administrative entity
-        if (entity.roles?.includes("registrant") || entity.roles?.includes("administrative")) {
-          // Extract organization and contact information from vcardArray if available
-          if (entity.vcardArray && entity.vcardArray[1]) {
-            const vcardProps = entity.vcardArray[1];
-            for (const prop of vcardProps) {
-              // VCardProperty format: [type, params, type_name, value]
-              const [propType, params, , value] = prop;
-
-              if (propType === "org" && typeof value === "string") {
-                // Organization name
-                const orgValue = value.split(";")[0].trim(); // Take first organization if semicolon separated
-                location.org = orgValue || location.org;
-                location.isp = location.isp || orgValue;
-              }
-
-              if (propType === "fn" && typeof value === "string") {
-                // Full name (for organizations, this is often the org name)
-                if (!location.org && value.trim()) {
-                  location.org = value.trim();
-                  location.isp = location.isp || value.trim();
-                }
-              }
-
-              if (propType === "adr") {
-                // Address property - check for address in label parameter
-                if (params && params.label && typeof params.label === "string") {
-                  // Parse address from label parameter
-                  const addressLines = params.label.split("\n");
-                  if (addressLines.length >= 3) {
-                    // Format typically: Street\nCity\nState\nPostal\nCountry
-                    const country = addressLines[addressLines.length - 1]?.trim();
-                    const stateOrCity = addressLines[addressLines.length - 2]?.trim();
-                    const city = addressLines[2]?.trim();
-
-                    if (country) {
-                      location.country = country;
-                      // Extract country code (last word)
-                      const countryWords = country.split(" ");
-                      location.countryCode = countryWords[countryWords.length - 1]
-                        .substring(0, 2)
-                        .toUpperCase();
-                    }
-
-                    if (stateOrCity && /^[A-Z]{2}$/i.test(stateOrCity)) {
-                      location.region = stateOrCity.toUpperCase();
-                    } else if (city && city !== stateOrCity) {
-                      location.city = city;
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Extract coordinates from remarks if available (some RDAP servers include this)
-    if (rdapResponse.remarks) {
-      for (const remark of rdapResponse.remarks) {
-        if (remark.description) {
-          for (const desc of remark.description) {
-            // Look for coordinate patterns in description
-            const coordMatch = desc.match(/(\d+\.\d+),\s*(-?\d+\.\d+)/);
-            if (coordMatch) {
-              location.latitude = parseFloat(coordMatch[1]);
-              location.longitude = parseFloat(coordMatch[2]);
-            }
-
-            // Look for timezone information
-            const tzMatch = desc.match(/timezone[:\s]+([A-Za-z_/]+)/i);
-            if (tzMatch) {
-              location.timezone = tzMatch[1].trim();
-            }
-          }
-        }
-      }
-    }
-
-    // Extract ASN from handle or events
-    if (rdapResponse.handle) {
-      const asnMatch = rdapResponse.handle.match(/(AS\d+)|(\d+)/);
-      if (asnMatch) {
-        location.asn = asnMatch[1] || asnMatch[2];
-      }
-    }
-
-    return location;
-  };
-
-  const lookup = async (ip: string, _queryOptions?: QueryOptions): Promise<GeoLocation> => {
+  const lookup = async (ip: string, queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
-      const rdapResponse = await queryIP<RdapIpNetwork>(ip, {
-        baseUrl,
-        fetchOptions,
+      const response = await queryIP<RdapIpNetwork>(ip, {
+        baseUrl: options.baseUrl,
+        fetchOptions: options.fetchOptions,
       });
 
-      const result = extractGeoLocation(rdapResponse, ip);
-      if (result) {
-        return result;
-      }
-
-      // Return empty object if no data found
-      return {
-        ip,
-        country: "",
-        countryCode: "",
-        region: "",
-        regionCode: "",
-        city: "",
-        latitude: 0,
-        longitude: 0,
-        isp: "",
-        org: "",
-        asn: "",
-        timezone: "",
-        source: "rdap",
-        accuracyRadius: "",
-        isProxy: false,
-      };
-    } catch {
-      // Return empty object on error
-      return {
-        ip,
-        country: "",
-        countryCode: "",
-        region: "",
-        regionCode: "",
-        city: "",
-        latitude: 0,
-        longitude: 0,
-        isp: "",
-        org: "",
-        asn: "",
-        timezone: "",
-        source: "rdap",
-        accuracyRadius: "",
-        isProxy: false,
-      };
+      return extractGeoLocation(response, ip, queryOptions);
+    } catch (error) {
+      throw createProviderError(SOURCE, error);
     }
-  };
-
-  const current = async (_queryOptions?: QueryOptions): Promise<GeoLocation> => {
-    // RDAP doesn't support current IP detection, return empty object
-    return {
-      ip: "",
-      country: "",
-      countryCode: "",
-      region: "",
-      regionCode: "",
-      city: "",
-      latitude: 0,
-      longitude: 0,
-      isp: "",
-      org: "",
-      asn: "",
-      timezone: "",
-      source: "rdap",
-      accuracyRadius: "",
-      isProxy: false,
-    };
   };
 
   const batchLookup = async (
     ips: string[],
-    queryOptions?: QueryOptions,
+    queryOptions?: BatchQueryOptions,
   ): Promise<GeoLocation[]> => {
-    const results: GeoLocation[] = [];
+    const batchOptions = resolveBatchOptions(queryOptions, {
+      batchSize: options.batchSize ?? 1,
+      concurrency: options.concurrency ?? 2,
+    });
 
-    for (const ip of ips) {
-      try {
-        const result = await lookup(ip, queryOptions);
-        if (result) {
-          results.push(result);
-        }
-      } catch {
-        // Continue with next IP on error
-        continue;
-      }
-    }
+    const batches = await mapBatches(
+      ips,
+      batchOptions,
+      async (batch) =>
+        await Promise.all(
+          batch.map(async (ip) => {
+            try {
+              return await lookup(ip, queryOptions);
+            } catch {
+              return null;
+            }
+          }),
+        ),
+    );
 
-    return results;
+    return batches.flat().filter((result): result is GeoLocation => result !== null);
+  };
+
+  const capabilities: DriverCapabilities = {
+    lookup: true,
+    current: false,
+    batchLookup: true,
+    nativeBatch: false,
+    remote: true,
+    proxyDetection: false,
   };
 
   return {
-    name: "rdap",
+    name: SOURCE,
     options,
+    capabilities,
     lookup,
-    current,
     batchLookup,
   };
 }

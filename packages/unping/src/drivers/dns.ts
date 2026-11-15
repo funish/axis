@@ -1,15 +1,44 @@
-import { promises as dnsPromises } from "dns";
+import { promises as dnsPromises } from "node:dns";
 
-import type { Driver, DriverOptions, PingResult, PingOptions } from "../types";
+import { classifyError, timeoutError } from "../errors";
+import { runProbeSeries } from "../probe";
+import type { PingDriver, PingOptions, PingResult, ProbeErrorInfo } from "../types";
 
-export interface DNSDriverOptions extends DriverOptions {
+export interface DNSDriverOptions {
   /** DNS record type (default: A) */
   type?: "A" | "AAAA" | "CNAME" | "MX" | "TXT" | "NS";
-  /** DNS servers */
+  /** DNS servers to query instead of the operating-system resolver */
   servers?: string[];
 }
 
-// Export pingOnce for reuse
+async function resolveWithTimeout(
+  resolver: dnsPromises.Resolver,
+  host: string,
+  type: string,
+  timeout: number,
+): Promise<unknown> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      resolver.resolve(host, type),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("DNS lookup timeout")), timeout);
+        timer.unref?.();
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function dnsError(error: unknown, timeout: number): ProbeErrorInfo {
+  if (error instanceof Error && error.message === "DNS lookup timeout") {
+    return timeoutError("dns", timeout);
+  }
+  return classifyError(error, "dns");
+}
+
+// Exported for reuse and parser-level testing.
 export async function pingOnceDNS(
   resolver: dnsPromises.Resolver,
   host: string,
@@ -20,60 +49,49 @@ export async function pingOnceDNS(
   const startTime = Date.now();
 
   try {
-    // Set timeout
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("DNS lookup timeout")), timeout);
-    });
-
-    // Resolve with timeout
-    await Promise.race([resolver.resolve(host, type), timeoutPromise]);
+    const records = await resolveWithTimeout(resolver, host, type, timeout);
 
     return {
       host,
       alive: true,
       time: Date.now() - startTime,
       sequence,
+      kind: "dns",
+      method: "dns",
+      metadata: {
+        records,
+        recordType: type,
+      },
     };
-  } catch {
+  } catch (error) {
     return {
       host,
       alive: false,
       time: Date.now() - startTime,
       sequence,
+      kind: "dns",
+      method: "dns",
+      error: dnsError(error, timeout),
+      metadata: {
+        recordType: type,
+      },
     };
   }
 }
 
-export default function dnsDriver(options: DNSDriverOptions = {}): Driver {
+export default function dnsDriver(options: DNSDriverOptions = {}): PingDriver<DNSDriverOptions> {
   const { type = "A", servers } = options;
-
-  // Create resolver
   const resolver = new dnsPromises.Resolver();
   if (servers) {
     resolver.setServers(servers);
   }
 
-  const ping = async (host: string, opts?: PingOptions): Promise<PingResult[]> => {
-    const count = opts?.count || 1;
-    const timeout = opts?.timeout || 5000;
-    const results: PingResult[] = [];
-
-    for (let i = 0; i < count; i++) {
-      const result = await pingOnceDNS(resolver, host, type, timeout, i + 1);
-      results.push(result);
-
-      // Add interval if count > 1
-      if (i < count - 1 && opts?.interval) {
-        await new Promise((resolve) => setTimeout(resolve, opts.interval));
-      }
-    }
-
-    return results;
-  };
-
   return {
     name: "dns",
     options,
-    ping,
+    ping: (host: string, pingOptions?: PingOptions): Promise<PingResult[]> =>
+      runProbeSeries(host, pingOptions ?? {}, (target, context) =>
+        pingOnceDNS(resolver, target, type, context.timeout, context.sequence),
+      ),
   };
 }

@@ -1,15 +1,22 @@
-import { Socket } from "net";
+import { Socket } from "node:net";
 
-import type { Driver, DriverOptions, PingResult, PingOptions } from "../types";
+import { classifyError, timeoutError } from "../errors";
+import { runProbeSeries } from "../probe";
+import type { DriverOptions, PingDriver, PingOptions, PingResult, ProbeErrorInfo } from "../types";
 
 export interface TCPDriverOptions extends DriverOptions {
   /** Target port (default: 80) */
   port?: number;
-  /** Connection timeout in ms (default: 5000) */
+  /** Legacy alias for timeout; request timeout takes precedence */
   connectTimeout?: number;
 }
 
-// Export pingOnce for reuse
+function finish(socket: Socket, settle: (result: PingResult) => void, result: PingResult): void {
+  socket.destroy();
+  settle(result);
+}
+
+// Exported for reuse by the hybrid driver.
 export async function pingOnceTCP(
   host: string,
   port: number,
@@ -19,42 +26,59 @@ export async function pingOnceTCP(
   return new Promise((resolve) => {
     const socket = new Socket();
     const startTime = Date.now();
-    let resolved = false;
+    let settled = false;
 
-    const cleanup = () => {
-      if (resolved) return;
-      resolved = true;
-      socket.destroy();
+    const settle = (result: PingResult) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      finish(socket, resolve, result);
     };
 
     socket.setTimeout(timeout, () => {
-      cleanup();
-      resolve({
+      settle({
         host,
         alive: false,
-        time: timeout,
+        time: Math.max(timeout, Date.now() - startTime),
         sequence,
+        kind: "tcp",
+        method: "tcp",
+        error: timeoutError("connect", timeout),
+        metadata: {
+          port,
+        },
       });
     });
 
-    socket.on("connect", () => {
-      const time = Date.now() - startTime;
-      cleanup();
-      resolve({
+    socket.once("connect", () => {
+      settle({
         host,
         alive: true,
-        time,
+        time: Date.now() - startTime,
         sequence,
+        kind: "tcp",
+        method: "tcp",
+        metadata: {
+          port,
+          connectTime: Date.now() - startTime,
+        },
       });
     });
 
-    socket.on("error", () => {
-      cleanup();
-      resolve({
+    socket.once("error", (error: Error) => {
+      const errorInfo: ProbeErrorInfo = classifyError(error, "connect");
+      settle({
         host,
         alive: false,
         time: Date.now() - startTime,
         sequence,
+        kind: "tcp",
+        method: "tcp",
+        error: errorInfo,
+        metadata: {
+          port,
+        },
       });
     });
 
@@ -62,30 +86,18 @@ export async function pingOnceTCP(
   });
 }
 
-export default function tcpDriver(options: TCPDriverOptions = {}): Driver {
+export default function tcpDriver(options: TCPDriverOptions = {}): PingDriver<TCPDriverOptions> {
   const { port = 80, connectTimeout = 5000 } = options;
-
-  const ping = async (host: string, opts?: PingOptions): Promise<PingResult[]> => {
-    const count = opts?.count || 1;
-    const timeout = opts?.timeout || connectTimeout;
-    const results: PingResult[] = [];
-
-    for (let i = 0; i < count; i++) {
-      const result = await pingOnceTCP(host, port, timeout, i + 1);
-      results.push(result);
-
-      // Add interval if count > 1
-      if (i < count - 1 && opts?.interval) {
-        await new Promise((resolve) => setTimeout(resolve, opts.interval));
-      }
-    }
-
-    return results;
-  };
 
   return {
     name: "tcp",
     options,
-    ping,
+    ping: (host: string, pingOptions?: PingOptions): Promise<PingResult[]> =>
+      runProbeSeries(
+        host,
+        pingOptions ?? {},
+        (target, context) => pingOnceTCP(target, port, context.timeout, context.sequence),
+        { timeout: connectTimeout },
+      ),
   };
 }

@@ -1,43 +1,24 @@
 import type { Driver, DNSRecord, DriverOptions } from "..";
 
+/**
+ * A driver whose semantics are explicit emptiness. It is useful for disabling
+ * DNS side effects in applications and tests.
+ */
 export default function nullDriver(options: DriverOptions = {}): Driver {
   return {
     name: "null",
     options,
-
-    // Read operations - all return empty/null values
-    getRecord: async (): Promise<DNSRecord | null> => {
-      return null;
+    capabilities: {
+      read: false,
+      write: false,
+      upsert: false,
+      batchWrite: false,
+      nxdomain: false,
     },
 
-    getRecords: async (): Promise<DNSRecord[]> => {
-      return [];
-    },
-
-    hasRecord: async (): Promise<boolean> => {
-      return false;
-    },
-
-    // Write operations - all are no-ops
-    setRecord: async (): Promise<DNSRecord> => {
-      return {} as DNSRecord;
-    },
-
-    setRecords: async (): Promise<DNSRecord[]> => {
-      return [];
-    },
-
-    removeRecord: async (): Promise<void> => {
-      // No-op
-    },
-
-    removeRecords: async (): Promise<void> => {
-      // No-op
-    },
-
-    // Lifecycle - no-op
-    dispose: async (): Promise<void> => {
-      // No-op
-    },
+    getRecord: async (): Promise<DNSRecord | null> => null,
+    getRecords: async (): Promise<DNSRecord[]> => [],
+    hasRecord: async (): Promise<boolean> => false,
+    dispose: async (): Promise<void> => {},
   };
 }

@@ -1,4 +1,4 @@
-export type UnsslErrorCode =
+export type SSLErrorCode =
   | "invalid_request"
   | "unauthorized"
   | "not_found"
@@ -10,8 +10,8 @@ export type UnsslErrorCode =
   | "key_storage"
   | "disposed";
 
-export interface UnsslErrorOptions {
-  code: UnsslErrorCode;
+export interface SSLErrorOptions {
+  code: SSLErrorCode;
   provider?: string;
   status?: number;
   retryable?: boolean;
@@ -20,17 +20,17 @@ export interface UnsslErrorOptions {
   nonce?: string;
 }
 
-export class UnsslError extends Error {
-  readonly code: UnsslErrorCode;
+export class SSLError extends Error {
+  readonly code: SSLErrorCode;
   readonly provider?: string;
   readonly status?: number;
   readonly retryable: boolean;
   readonly details?: unknown;
   readonly nonce?: string;
 
-  constructor(message: string, options: UnsslErrorOptions) {
+  constructor(message: string, options: SSLErrorOptions) {
     super(message, { cause: options.cause });
-    this.name = "UnsslError";
+    this.name = "SSLError";
     this.code = options.code;
     this.provider = options.provider;
     this.status = options.status;
@@ -41,8 +41,8 @@ export class UnsslError extends Error {
   }
 }
 
-export function notSupported(operation: string, provider?: string): UnsslError {
-  return new UnsslError(`Operation is not supported: ${operation}`, {
+export function notSupported(operation: string, provider?: string): SSLError {
+  return new SSLError(`Operation is not supported: ${operation}`, {
     code: "not_supported",
     provider,
   });
@@ -53,7 +53,7 @@ export function classifyHttpError(
   provider: string,
   details?: unknown,
   nonce?: string,
-): UnsslError {
+): SSLError {
   const code =
     status === 400
       ? "invalid_request"
@@ -66,7 +66,7 @@ export function classifyHttpError(
             : "provider_error";
 
   const problem = details as { detail?: string; type?: string } | undefined;
-  return new UnsslError(problem?.detail || `Provider request failed with status ${status}`, {
+  return new SSLError(problem?.detail || `Provider request failed with status ${status}`, {
     code,
     provider,
     status,
@@ -76,11 +76,11 @@ export function classifyHttpError(
   });
 }
 
-export function wrapUnknownError(error: unknown, provider?: string): UnsslError {
-  if (error instanceof UnsslError) {
+export function wrapUnknownError(error: unknown, provider?: string): SSLError {
+  if (error instanceof SSLError) {
     return error;
   }
-  return new UnsslError(error instanceof Error ? error.message : String(error), {
+  return new SSLError(error instanceof Error ? error.message : String(error), {
     code: "provider_error",
     provider,
     cause: error,

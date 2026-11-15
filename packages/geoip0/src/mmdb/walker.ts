@@ -154,7 +154,7 @@ export class MMDBWalker {
    * Check if a record points to data or another node
    */
   static isDataPointer(record: number, nodeCount: number): boolean {
-    return record > nodeCount;
+    return record >= nodeCount + 16;
   }
 
   /**

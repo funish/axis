@@ -6,5 +6,9 @@
 // Export all types
 export * from "./types";
 
+// Export provider failure and normalization contracts
+export * from "./errors";
+export * from "./normalize";
+
 // Export all GeoIP management functions
 export * from "./geo";

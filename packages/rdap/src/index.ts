@@ -4,11 +4,7 @@
  * @see https://www.icann.org/rdap
  */
 
-// Export all types
+export * from "./error";
 export * from "./types";
-
-// Export all utility functions
 export * from "./utils";
-
-// Export all RDAP client functions
 export * from "./rdap";

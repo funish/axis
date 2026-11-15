@@ -1,4 +1,4 @@
-import { classifyHttpError, UnsslError } from "../errors";
+import { classifyHttpError, SSLError } from "../errors";
 import type {
   CertificateChallenge,
   CertificateRequest,
@@ -8,7 +8,7 @@ import type {
   HttpFileValidationChallenge,
   IssuedCertificate,
   RevokeReason,
-  UnsslDriver,
+  SSLDriver,
 } from "../types";
 
 export interface ZeroSslDriverOptions extends DriverOptions {
@@ -71,7 +71,7 @@ function parseJson<T>(provider: string, body: string): T {
   try {
     return JSON.parse(body) as T;
   } catch (error) {
-    throw new UnsslError("Provider returned an invalid JSON response", {
+    throw new SSLError("Provider returned an invalid JSON response", {
       code: "provider_error",
       provider,
       cause: error,
@@ -133,11 +133,11 @@ function mapCertificate(certificate: ZeroSslCertificate, provider: string): Issu
 
 export default function zeroSslDriver(
   options: ZeroSslDriverOptions,
-): UnsslDriver<ZeroSslDriverOptions> {
+): SSLDriver<ZeroSslDriverOptions> {
   const provider = "zerossl";
   const baseUrl = options.baseUrl || "https://api.zerossl.com";
   const fetch = options.fetch || globalThis.fetch;
-  const intervalMs = options.pollIntervalMs || 2000;
+  const pollIntervalMs = options.pollIntervalMs ?? 2000;
   const timeoutMs = options.timeoutMs || 600_000;
 
   async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -151,7 +151,7 @@ export default function zeroSslDriver(
         },
       });
     } catch (error) {
-      throw new UnsslError(`Unable to connect to ZeroSSL: ${path}`, {
+      throw new SSLError(`Unable to connect to ZeroSSL: ${path}`, {
         code: "network",
         provider,
         cause: error,
@@ -164,7 +164,7 @@ export default function zeroSslDriver(
     if (!response.ok || (parsed as { success?: boolean })?.success === false) {
       const error = (parsed as { error?: ZeroSslError }).error;
       const classified = classifyHttpError(response.status, provider, error || parsed);
-      throw new UnsslError(error?.detail || classified.message, {
+      throw new SSLError(error?.detail || classified.message, {
         code: classified.code,
         provider,
         status: response.status,
@@ -190,13 +190,16 @@ export default function zeroSslDriver(
     };
   }
 
-  async function waitForCertificate(id: string): Promise<ZeroSslCertificate> {
+  async function waitForCertificate(
+    id: string,
+    intervalMs = pollIntervalMs,
+  ): Promise<ZeroSslCertificate> {
     const started = Date.now();
     let certificate = await getCertificate(id);
 
     while (!["issued", "revoked", "expired", "cancelled"].includes(certificate.status)) {
       if (Date.now() - started > timeoutMs) {
-        throw new UnsslError("Timed out waiting for ZeroSSL validation", {
+        throw new SSLError("Timed out waiting for ZeroSSL validation", {
           code: "challenge_failed",
           provider,
           details: certificate,
@@ -207,7 +210,7 @@ export default function zeroSslDriver(
     }
 
     if (certificate.status !== "issued") {
-      throw new UnsslError(`ZeroSSL certificate status is ${certificate.status}`, {
+      throw new SSLError(`ZeroSSL certificate status is ${certificate.status}`, {
         code:
           certificate.status === "pending_validation" || certificate.status === "draft"
             ? "challenge_failed"
@@ -222,7 +225,7 @@ export default function zeroSslDriver(
   async function issueCertificate(request: CertificateRequest): Promise<IssuedCertificate> {
     const validityDays = request.validityDays || 90;
     if (![90, 200, 365].includes(validityDays)) {
-      throw new UnsslError("ZeroSSL supports validity periods of 90, 200, or 365 days", {
+      throw new SSLError("ZeroSSL supports validity periods of 90, 200, or 365 days", {
         code: "invalid_request",
         provider,
         details: { validityDays },
@@ -248,20 +251,17 @@ export default function zeroSslDriver(
     );
 
     if (selected.length === 0) {
-      throw new UnsslError("ZeroSSL did not return HTTP-file or DNS-CNAME validation data", {
+      throw new SSLError("ZeroSSL did not return HTTP-file or DNS-CNAME validation data", {
         code: "provider_error",
         provider,
         details: certificate.validation,
       });
     }
     if (!validationOptions.onValidation) {
-      throw new UnsslError(
-        "request.validation.onValidation is required by the ZeroSSL REST driver",
-        {
-          code: "invalid_request",
-          provider,
-        },
-      );
+      throw new SSLError("request.validation.onValidation is required by the ZeroSSL REST driver", {
+        code: "invalid_request",
+        provider,
+      });
     }
 
     await validationOptions.onValidation(selected);
@@ -271,7 +271,10 @@ export default function zeroSslDriver(
         validation_method: preferred === "dns-cname" ? "CNAME_CSR_HASH" : "HTTP_CSR_HASH",
       }),
     });
-    const issued = await waitForCertificate(certificate.id);
+    const issued = await waitForCertificate(
+      certificate.id,
+      validationOptions.pollIntervalMs ?? pollIntervalMs,
+    );
     const downloaded = await download(certificate.id);
     await validationOptions.onValidationComplete?.(selected);
 
@@ -292,7 +295,7 @@ export default function zeroSslDriver(
 
   function requireRenewalCsr(request?: Partial<CertificateRequest>): string {
     if (!request?.csrPem) {
-      throw new UnsslError("ZeroSSL renewal requires a new CSR", {
+      throw new SSLError("ZeroSSL renewal requires a new CSR", {
         code: "invalid_request",
         provider,
       });
@@ -322,7 +325,7 @@ export default function zeroSslDriver(
 
     async revoke(request) {
       if (!request.certificateId) {
-        throw new UnsslError("ZeroSSL revocation requires certificateId", {
+        throw new SSLError("ZeroSSL revocation requires certificateId", {
           code: "invalid_request",
           provider,
         });

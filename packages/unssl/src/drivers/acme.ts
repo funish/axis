@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { AcmeClient, accountJwkThumbprint, createChallengeFromKeyAuthorization } from "../acme";
-import { UnsslError } from "../errors";
+import { SSLError } from "../errors";
 import type {
   AcmeAuthorization,
   AcmeChallenge,
@@ -16,7 +16,7 @@ import type {
   JwsSigner,
   NonceStore,
   RevokeRequest,
-  UnsslDriver,
+  SSLDriver,
 } from "../types";
 
 export interface AcmeDriverOptions extends DriverOptions {
@@ -54,7 +54,7 @@ function selectChallenge(
     known[0];
 
   if (!challenge) {
-    throw new UnsslError(
+    throw new SSLError(
       `No supported HTTP-01 or DNS-01 challenge for ${authorization.identifier.value}`,
       { code: "challenge_failed", provider: "acme", details: authorization },
     );
@@ -66,15 +66,22 @@ async function waitFor<T>(
   initial: T,
   refresh: () => Promise<T>,
   read: (value: T) => { status?: string; error?: { type?: string; detail?: string } },
-  options: { intervalMs: number; timeoutMs: number; provider: string; label: string },
+  options: {
+    intervalMs: number;
+    timeoutMs: number;
+    provider: string;
+    label: string;
+    terminalStatuses?: string[];
+  },
 ): Promise<T> {
+  const terminalStatuses = options.terminalStatuses || ["valid", "invalid"];
   const started = Date.now();
   let current = initial;
   let status = read(current).status;
 
-  while (status !== "valid" && status !== "invalid") {
+  while (!terminalStatuses.includes(status || "")) {
     if (Date.now() - started > options.timeoutMs) {
-      throw new UnsslError(`Timed out waiting for ${options.label}`, {
+      throw new SSLError(`Timed out waiting for ${options.label}`, {
         code: "challenge_failed",
         provider: options.provider,
         details: current,
@@ -87,7 +94,7 @@ async function waitFor<T>(
 
   const failure = read(current).error;
   if (status === "invalid") {
-    throw new UnsslError(`${options.label} failed`, {
+    throw new SSLError(`${options.label} failed`, {
       code: "challenge_failed",
       provider: options.provider,
       details: current,
@@ -99,7 +106,7 @@ async function waitFor<T>(
   return current;
 }
 
-export default function acmeDriver(options: AcmeDriverOptions): UnsslDriver<AcmeDriverOptions> {
+export default function acmeDriver(options: AcmeDriverOptions): SSLDriver<AcmeDriverOptions> {
   const client = new AcmeClient({
     directoryUrl: options.directoryUrl,
     provider: options.provider,
@@ -117,7 +124,7 @@ export default function acmeDriver(options: AcmeDriverOptions): UnsslDriver<Acme
     renewalOf?: string,
   ): Promise<IssuedCertificate> {
     if (!options.signer || !options.accountJwk) {
-      throw new UnsslError("ACME issuance requires signer and accountJwk", {
+      throw new SSLError("ACME issuance requires signer and accountJwk", {
         code: "invalid_request",
         provider: options.provider,
       });
@@ -125,7 +132,10 @@ export default function acmeDriver(options: AcmeDriverOptions): UnsslDriver<Acme
 
     const issueOptions = request.acme || {};
     const preferred = issueOptions.preferredChallenge || options.preferredChallenge || "http-01";
-    const intervalMs = issueOptions.pollIntervalMs || options.pollIntervalMs || 1000;
+    const intervalMs =
+      issueOptions.pollIntervalMs !== undefined
+        ? issueOptions.pollIntervalMs
+        : (options.pollIntervalMs ?? 1000);
     const timeoutMs = issueOptions.timeoutMs || options.timeoutMs || 120_000;
 
     let order = await client.newOrder({ identifiers: request.identifiers });
@@ -142,13 +152,10 @@ export default function acmeDriver(options: AcmeDriverOptions): UnsslDriver<Acme
       );
 
       if (!issueOptions.onChallenge) {
-        throw new UnsslError(
-          "request.acme.onChallenge is required for pending ACME authorizations",
-          {
-            code: "invalid_request",
-            provider: options.provider,
-          },
-        );
+        throw new SSLError("request.acme.onChallenge is required for pending ACME authorizations", {
+          code: "invalid_request",
+          provider: options.provider,
+        });
       }
 
       await issueOptions.onChallenge(keyAuthorization);
@@ -167,7 +174,19 @@ export default function acmeDriver(options: AcmeDriverOptions): UnsslDriver<Acme
       await issueOptions.onChallengeComplete?.(keyAuthorization);
     }
 
-    order = await client.refreshOrder(order);
+    order = await waitFor(
+      order,
+      () => client.refreshOrder(order),
+      (value) => value,
+      {
+        intervalMs,
+        timeoutMs,
+        provider: options.provider,
+        label: "certificate order",
+        terminalStatuses: ["ready", "processing", "valid", "invalid"],
+      },
+    );
+
     if (order.status === "ready") {
       order = await client.finalizeOrder(order, request.csrPem);
     }
@@ -203,7 +222,7 @@ export default function acmeDriver(options: AcmeDriverOptions): UnsslDriver<Acme
 
   function requireRenewalCsr(request?: Partial<CertificateRequest>): string {
     if (!request?.csrPem) {
-      throw new UnsslError("ACME renewal requires a new CSR", {
+      throw new SSLError("ACME renewal requires a new CSR", {
         code: "invalid_request",
         provider: options.provider,
       });
@@ -234,7 +253,7 @@ export default function acmeDriver(options: AcmeDriverOptions): UnsslDriver<Acme
 
     async revoke(request: RevokeRequest) {
       if (!request.certificatePem) {
-        throw new UnsslError("ACME revocation requires certificatePem", {
+        throw new SSLError("ACME revocation requires certificatePem", {
           code: "invalid_request",
           provider: options.provider,
         });
@@ -251,7 +270,7 @@ export default function acmeDriver(options: AcmeDriverOptions): UnsslDriver<Acme
         );
       }
       if (!request.token || !options.accountJwk) {
-        throw new UnsslError(
+        throw new SSLError(
           "ACME challenge derivation requires keyAuthorization or token and accountJwk",
           {
             code: "invalid_request",

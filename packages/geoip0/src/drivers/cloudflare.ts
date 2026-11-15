@@ -1,180 +1,184 @@
 import { ofetch } from "ofetch";
 
-import type { Driver, GeoLocation, QueryOptions, DriverOptions } from "..";
+import type {
+  BatchQueryOptions,
+  Driver,
+  DriverCapabilities,
+  DriverOptions,
+  GeoLocation,
+  QueryOptions,
+} from "..";
+import { mapBatches, resolveBatchOptions } from "../batch";
+import { createProviderError } from "../errors";
+import { normalizeGeoLocation } from "../normalize";
 
 // Cloudflare Radar IP Check API response interface
 export interface CloudflareIPCheckResponse {
-  colo: string; // Cloudflare data center code, e.g., "NRT", "LAX"
-  asn: number; // Autonomous System Number, e.g., 15169, 8075
-  continent: string; // Continent code, e.g., "NA", "EU", "AS", "OC"
-  country: string; // Two-letter country code, e.g., "US", "JP", "DE"
-  region: string; // Region/state name, e.g., "California", "Tokyo", "Bavaria"
-  city: string; // City name, e.g., "San Francisco", "Tokyo", "Munich"
-  latitude: string; // Latitude coordinate as string, e.g., "37.77490", "35.68950"
-  longitude: string; // Longitude coordinate as string, e.g., "-122.41940", "139.69171"
-  ip_address: string; // IP address, e.g., "192.0.2.1", "2001:db8::1"
-  ip_version: string; // IP version ("IPv4" or "IPv6"), e.g., "IPv4", "IPv6"
+  colo?: string;
+  asn?: number;
+  country?: string;
+  region?: string;
+  city?: string;
+  latitude?: string;
+  longitude?: string;
+  ip_address?: string;
+  ip_version?: string;
 }
 
 // Cloudflare Radar GeolocationPanel API response interface
 export interface CloudflareGeoResponse {
-  code: string; // Country code, e.g., "jp", "us"
-  isClientIP: boolean; // Whether this is the client IP
+  code?: string;
+  isClientIP?: boolean;
 }
 
 // Cloudflare Radar AsPanel API response interface
 export interface CloudflareAsnResponse {
-  asn: {
-    name: string; // ASN name, e.g., "AKARI-NETWORKS-AS-AP"
-    aka: string; // Alternative name
-    asn: number; // ASN number, e.g., 38136
-    website: string; // Website URL
-    country: string; // Country code, e.g., "HK", "US"
-    countryName: string; // Full country name, e.g., "Hong Kong"
-    orgName: string; // Organization name
-    source: string; // Source database, e.g., "APNIC"
-    related: Array<any>; // Related ASNs
-    confidenceLevel: number; // Confidence level (1-5)
-    estimatedUsers: {
-      estimatedUsers: number; // Estimated user count
-      locations: Array<{
-        estimatedUsers: number; // Estimated users in this country
-        locationName: string; // Country code
-        locationAlpha2: string; // 2-letter country code
-      }>;
-    };
+  asn?: {
+    name?: string;
+    asn?: number;
+    country?: string;
+    countryName?: string;
+    orgName?: string;
+    source?: string;
   };
-  isClientIP: boolean;
+  isClientIP?: boolean;
 }
 
 // Cloudflare Driver options
-export interface CloudflareOptions extends DriverOptions {}
+export interface CloudflareOptions extends DriverOptions {
+  baseUrl?: string;
+  batchSize?: number;
+  concurrency?: number;
+}
+
+const SOURCE = "cloudflare";
+
+function coordinate(value: string | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
 
 export default function cloudflareDriver(
   options: CloudflareOptions = {},
 ): Driver<CloudflareOptions> {
-  const lookup = async (ip: string, _queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
+  const baseUrl = options.baseUrl || "https://radar.cloudflare.com";
+  const headers = {
+    accept: "application/json, text/plain, */*",
+    Referer: `${baseUrl}/`,
+  };
+
+  const lookup = async (ip: string, queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
-      // Step 1: Get GeolocationPanel data first
-      const geoResponse: CloudflareGeoResponse = await ofetch(
-        `https://radar.cloudflare.com/charts/GeolocationPanel/fetch?ip=${ip}`,
+      const [geoResponse, asnResponse] = await Promise.all([
+        ofetch<CloudflareGeoResponse>(
+          `${baseUrl}/charts/GeolocationPanel/fetch?ip=${encodeURIComponent(ip)}`,
+          { headers },
+        ),
+        ofetch<CloudflareAsnResponse>(
+          `${baseUrl}/charts/AsPanel/fetch?ip=${encodeURIComponent(ip)}`,
+          { headers },
+        ),
+      ]);
+
+      const countryCode = geoResponse.code?.toUpperCase();
+      const asn = asnResponse.asn;
+
+      return normalizeGeoLocation(
         {
-          headers: {
-            accept: "application/json, text/plain, */*",
-            Referer: "https://radar.cloudflare.com/",
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "same-origin",
-          },
+          ip,
+          source: SOURCE,
+          countryCode,
+          country: asn?.countryName,
+          city: undefined,
+          latitude: undefined,
+          longitude: undefined,
+          isp: asn?.name,
+          org: asn?.orgName || asn?.name,
+          asn: asn?.asn === undefined ? undefined : asn.asn.toString(),
         },
+        queryOptions,
       );
-
-      // Step 2: Get ASN information from AsPanel API
-      const asnResponse: CloudflareAsnResponse = await ofetch(
-        `https://radar.cloudflare.com/charts/AsPanel/fetch?ip=${ip}`,
-        {
-          headers: {
-            accept: "application/json, text/plain, */*",
-            Referer: "https://radar.cloudflare.com/",
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "same-origin",
-          },
-        },
-      );
-
-      // Extract country code from GeolocationPanel
-      const countryCode = geoResponse.code?.toUpperCase() || "";
-
-      // Find estimated users for the country by matching GeolocationPanel code with AsPanel locationAlpha2
-      let countryName = countryCode; // Default to country code
-      if (asnResponse.asn.estimatedUsers?.locations && countryCode) {
-        const locationMatch = asnResponse.asn.estimatedUsers.locations.find(
-          (loc) => loc.locationAlpha2.toLowerCase() === countryCode.toLowerCase(),
-        );
-        // Use location name as country name if found
-        if (locationMatch?.locationName) {
-          countryName = locationMatch.locationName;
-        }
-      }
-
-      return {
-        ip,
-        countryCode: countryCode || "",
-        country: countryName || "",
-        region: "",
-        city: "",
-        latitude: 0,
-        longitude: 0,
-        isp: asnResponse.asn?.name || "",
-        org: asnResponse.asn?.name || "",
-        asn: asnResponse.asn?.asn?.toString() || "",
-        timezone: "",
-        source: "cloudflare",
-        regionCode: "",
-        accuracyRadius: "",
-        isProxy: false,
-      };
-    } catch {
-      return null;
+    } catch (error) {
+      throw createProviderError(SOURCE, error);
     }
   };
 
   const current = async (queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
+    const version = queryOptions?.version || "auto";
+    const url =
+      version === "ipv4"
+        ? "https://ipv4-check-perf.radar.cloudflare.com/"
+        : version === "ipv6"
+          ? "https://ipv6-check-perf.radar.cloudflare.com/"
+          : "https://ip-check-perf.radar.cloudflare.com/";
+
     try {
-      const version = queryOptions?.version || "auto";
-      let url = "https://ip-check-perf.radar.cloudflare.com/";
+      const data = await ofetch<CloudflareIPCheckResponse>(url);
 
-      if (version === "ipv4") {
-        url = "https://ipv4-check-perf.radar.cloudflare.com/";
-      } else if (version === "ipv6") {
-        url = "https://ipv6-check-perf.radar.cloudflare.com/";
-      }
-
-      const data: CloudflareIPCheckResponse = await ofetch(url);
-
-      return {
-        ip: data.ip_address,
-        countryCode: data.country || "",
-        country: "",
-        region: data.region || "",
-        city: data.city || "",
-        latitude: parseFloat(data.latitude) || 0,
-        longitude: parseFloat(data.longitude) || 0,
-        isp: "",
-        org: "",
-        asn: data.asn.toString(),
-        timezone: "",
-        source: "cloudflare",
-        regionCode: "",
-        accuracyRadius: "",
-        isProxy: false,
-      };
-    } catch {
-      return null;
+      return normalizeGeoLocation(
+        {
+          ip: data.ip_address || "",
+          source: SOURCE,
+          countryCode: data.country?.toUpperCase(),
+          region: data.region,
+          city: data.city,
+          latitude: coordinate(data.latitude),
+          longitude: coordinate(data.longitude),
+          asn: data.asn === undefined ? undefined : data.asn.toString(),
+        },
+        queryOptions,
+      );
+    } catch (error) {
+      throw createProviderError(SOURCE, error);
     }
   };
 
   const batchLookup = async (
     ips: string[],
-    queryOptions?: QueryOptions,
+    queryOptions?: BatchQueryOptions,
   ): Promise<GeoLocation[]> => {
-    const promises = ips.map((ip) => lookup(ip, queryOptions));
-    const results = await Promise.allSettled(promises);
+    const batchOptions = resolveBatchOptions(queryOptions, {
+      batchSize: options.batchSize ?? 1,
+      concurrency: options.concurrency ?? 2,
+    });
 
-    return results
-      .filter(
-        (result): result is PromiseFulfilledResult<GeoLocation> =>
-          result.status === "fulfilled" && result.value !== null,
-      )
-      .map((result) => result.value);
+    const batches = await mapBatches(
+      ips,
+      batchOptions,
+      async (batch) =>
+        await Promise.all(
+          batch.map(async (ip) => {
+            try {
+              return await lookup(ip, queryOptions);
+            } catch {
+              return null;
+            }
+          }),
+        ),
+    );
+
+    return batches.flat().filter((result): result is GeoLocation => result !== null);
+  };
+
+  const capabilities: DriverCapabilities = {
+    lookup: true,
+    current: true,
+    batchLookup: true,
+    nativeBatch: false,
+    remote: true,
+    proxyDetection: false,
   };
 
   return {
     name: "cloudflare",
     options,
+    capabilities,
     lookup,
-    batchLookup,
     current,
+    batchLookup,
   };
 }

@@ -100,10 +100,11 @@ import {
 
 console.log(ipInRange("2001:db8::/32", "2001:db8::1")); // true
 console.log(ipInRange("2001:db8::/32", "2001:db9::1")); // false
+console.log(isIPv6("::FFFF:192.168.1.1")); // true
 console.log(firstIPInRange("2001:db8::/32")); // '2001:db8:0000:0000:0000:0000:0000:0000'
 console.log(lastIPInRange("2001:db8::/32")); // '2001:db8:ffff:ffff:ffff:ffff:ffff:ffff'
 console.log(isPrivateIPv6("fc00::1")); // true
-console.log(nextIPv6("2001:db8::")); // '2001:db8::1'
+console.log(nextIPv6("2001:db8::")); // '2001:0db8:0000:0000:0000:0000:0000:0001'
 ```
 
 ### 🔄 Range Overlap Checking
@@ -126,7 +127,7 @@ console.log(intToIPv4(3232235521)); // '192.168.0.1'
 
 // IPv6 conversions
 console.log(ipv6ToBigInt("2001:db8::")); // 42540766452641154071740215577757643584n
-console.log(bigIntToIPv6(42540766452641154071740215577757643584n)); // '2001:db8::'
+console.log(bigIntToIPv6(42540766452641154071740215577757643584n)); // '2001:0db8:0000:0000:0000:0000:0000:0000'
 
 // Generic conversions
 console.log(toBinary("192.168.0.1")); // '11000000101010000000000000000001'
@@ -164,7 +165,7 @@ Check if a string is a valid IPv4 address.
 
 #### `isIPv6(ip: string): boolean`
 
-Check if a string is a valid IPv6 address.
+Check if a string is a valid IPv6 address, including valid compression and RFC 4291 embedded IPv4 notation.
 
 #### `isValidIP(ip: string): boolean`
 
@@ -244,25 +245,25 @@ Check if IPv6 address is multicast.
 
 #### `nextIPv4(ip: string | number): string`
 
-Get next IPv4 address.
+Get next IPv4 address. Throws `RangeError` at the end of the IPv4 address space.
 
 #### `prevIPv4(ip: string | number): string`
 
-Get previous IPv4 address.
+Get previous IPv4 address. Throws `RangeError` before the start of the IPv4 address space.
 
 #### `nextIPv6(ip: string | bigint): string`
 
-Get next IPv6 address.
+Get next IPv6 address. Throws `RangeError` at the end of the IPv6 address space.
 
 #### `prevIPv6(ip: string | bigint): string`
 
-Get previous IPv6 address.
+Get previous IPv6 address. Throws `RangeError` before the start of the IPv6 address space.
 
 ### 🌐 CIDR Range Operations
 
 #### `parseCIDR(cidr: string): object`
 
-Parse CIDR notation to range information.
+Parse CIDR notation to range information. Requires exactly one `/`, an integer prefix without extra characters, and a prefix in the supported range. Host bits in `start` are normalized to zero.
 
 #### `ipInRange(cidr: string, ip: string): boolean`
 
@@ -282,7 +283,7 @@ Get network mask for CIDR.
 
 #### `rangeSize(cidr: string): number | bigint`
 
-Get total number of addresses in CIDR range.
+Get total number of addresses in CIDR range. IPv4 sizes are safe `number` values; IPv6 sizes are `bigint`.
 
 #### `rangesOverlap(cidr1: string, cidr2: string): boolean`
 
@@ -314,8 +315,11 @@ The library throws descriptive errors for:
 
 - 🚫 Invalid IP address format
 - 📏 Invalid prefix length (must be 0-32 for IPv4, 0-128 for IPv6)
-- ❌ Mismatched IP version
-- 🚫 Invalid CIDR notation
+- 🚫 Invalid CIDR notation, including extra slash-separated segments
+- 🚫 Invalid numeric or buffer inputs to conversion, classification, and arithmetic functions
+- ➕ Arithmetic beyond either address-space boundary
+
+`ipInRange` returns `false` for invalid or mismatched-version input instead of throwing.
 
 ## 📄 License
 

@@ -15,9 +15,10 @@
 - 🔧 **Flexible Operations**: Support for read/write operations where providers allow
 - 🚀 **High Performance**: Built on h3 with minimal dependencies
 - 🎯 **Entity-Based**: Domain and record-focused API for intuitive DNS management
-- 🛡️ **DNS over HTTPS Server**: RFC 8484 compliant DoH server implementation
+- 🛡️ **DNS over HTTPS Server**: RFC 8484 wireformat and JSON DoH server
+- 🧭 **Stable Error Taxonomy**: Provider status/messages remain available through `UndnsError`
 - 🔍 **Advanced Record Types**: Support for TLSA, NAPTR, and other specialized records
-- 📋 **DNSCrypt Resolvers**: Built-in access to DNSCrypt public resolvers database
+- 📋 **DNSCrypt Resolvers**: Bundled static snapshot of DNSCrypt public resolvers
 
 ## Installation
 
@@ -78,21 +79,28 @@ const wwwRecords = await dns.getRecords("example.com", {
 const subRecords = await dns.getRecords("api.example.com");
 ```
 
-### Write Operations (when supported)
+### Write and Upsert Operations
 
 ```typescript
-// Set a new A record (only works with writable providers)
+// setRecord is an upsert: drivers replace the matching value instead of
+// blindly creating another record. Custom non-upsert writers may receive an
+// existing record ID from the manager.
 await dns.setRecord("example.com", {
   name: "www",
   type: "A",
   address: "192.168.1.1",
 });
 
-// Set multiple records
-await dns.setRecords("example.com", [
+// Batch operations continue after an item fails. Check indexed failures rather
+// than relying on an all-or-nothing exception.
+const batch = await dns.setRecords("example.com", [
   { name: "www", type: "A", address: "192.168.1.1" },
   { name: "mail", type: "MX", priority: 10, exchange: "mail.example.com" },
 ]);
+
+if (batch.failures.length > 0) {
+  console.error("Failed items:", batch.failures);
+}
 
 // Remove records
 const recordToRemove = await dns.getRecord("example.com", { type: "A" });
@@ -104,32 +112,52 @@ if (recordToRemove) {
 ### Available Drivers
 
 ```typescript
-// Cloudflare DNS driver (read-write)
+// Cloudflare DNS driver (read-write, upsert)
 import cloudflareDriver from "undns/drivers/cloudflare";
-// DNS over HTTPS driver (read-only)
+// DNS over HTTPS driver (read-only, can report NXDOMAIN)
 import dohDriver from "undns/drivers/doh";
-// Node.js DNS driver (read-only)
+// Node.js DNS driver (read-only, can report NXDOMAIN)
 import nodeDriver from "undns/drivers/node";
-// Null driver (for testing)
+// Null driver (explicitly disables reads and writes)
 import nullDriver from "undns/drivers/null";
 ```
+
+### Driver Capability Matrix
+
+| Driver     | Read | Write | Upsert | Provider batch | NXDOMAIN |
+| ---------- | :--: | :---: | :----: | :------------: | :------: |
+| cloudflare | Yes  |  Yes  |  Yes   |       No       |    No    |
+| doh        | Yes  |  No   |   No   |       No       |   Yes    |
+| node       | Yes  |  No   |   No   |       No       |   Yes    |
+| null       |  No  |  No   |   No   |       No       |    No    |
+
+Capabilities are also exposed on the manager as `dns.capabilities`. Custom
+drivers may declare `capabilities`; absent booleans are inferred from available
+optional methods. Cloudflare accepts `zoneId` or a `zones` map to avoid zone
+discovery, and otherwise performs an exact-name lookup and caches the result.
 
 ### DNS over HTTPS Server
 
 ```typescript
 import { createDohServer, createDohHandler } from "undns/servers/doh";
 
-// Create and start DoH server
-const dohServer = createDohServer();
+// A read-capable driver is required.
+const dohServer = createDohServer({ driver: nodeDriver({ servers: ["1.1.1.1"] }) });
 dohServer.serve(8080);
 console.log("DoH Server running on http://localhost:8080/dns-query");
 
-// Use handler with existing h3 app
+// Use the handler with an existing h3 app.
 import { createApp } from "h3";
 const app = createApp();
-const dohHandler = createDohHandler();
+const dohHandler = createDohHandler({
+  driver: nodeDriver({ servers: ["1.1.1.1"] }),
+});
 app.use("/dns-query", dohHandler);
 ```
+
+The wireformat endpoint supports RFC 8484 GET and POST, safely validates DNS
+messages, echoes the transaction ID, emits NXDOMAIN when a capable driver
+reports it, and keeps DNSSEC AD separate from the EDNS DO request flag.
 
 ### DNSCrypt Resolvers
 
@@ -148,17 +176,31 @@ const privacyResolvers = resolvers.filter((r) => r.nolog && r.nofilter);
 
 ### Error Handling
 
+Provider failures throw `UndnsError` with a stable `code`. When the upstream
+exposes a message or status, it is retained as `providerMessage` and `status`.
+
 ```typescript
-import { safeCall, unwrapResult } from "undns/utils";
+import { UNDNS_ERROR_CODES, UndnsError } from "undns";
 
-const result = await safeCall(() => dns.getRecords("example.com"), []);
-
-if (result.error) {
-  console.error("DNS query failed:", result.error);
-} else {
-  console.log("Records:", unwrapResult(result));
+try {
+  await dns.getRecords("example.com");
+} catch (error) {
+  if (error instanceof UndnsError) {
+    if (error.code === UNDNS_ERROR_CODES.nameNotFound) {
+      console.log("NXDOMAIN");
+    } else {
+      console.error(error.code, error.status, error.providerMessage);
+    }
+  }
 }
 ```
+
+Stable codes include `unsupported_operation`, `zone_not_found`,
+`record_not_found`, `name_not_found`, `provider_error`,
+`invalid_provider_response`, `unsupported_record_type`, and
+`invalid_dns_message`. A driver that declares `nxdomain: true` distinguishes
+NXDOMAIN from NOERROR with no answers; other drivers may return an empty array
+for both.
 
 ## API Reference
 
@@ -221,14 +263,17 @@ Create or update a DNS record (provider-dependent).
 
 ##### `setRecords(domain, records)`
 
-Create or update multiple DNS records.
+Create or update multiple records sequentially. Processing continues when one
+record fails.
 
 **Parameters:**
 
 - `domain` (string) - Domain name
 - `records` (DNSRecordInput[]) - Records to create/update
 
-**Returns:** `Promise<DNSRecord[]>` - Created/updated records
+**Returns:** `Promise<BatchSetResult>` with `records`, indexed `failures`,
+`succeeded`, and `failed`. No aggregate error is thrown for an item-level
+provider failure.
 
 ##### `removeRecord(domain, record)`
 
@@ -243,14 +288,16 @@ Remove a DNS record (provider-dependent).
 
 ##### `removeRecords(domain, records)`
 
-Remove multiple DNS records.
+Remove multiple DNS records sequentially. Processing continues when one removal
+fails.
 
 **Parameters:**
 
 - `domain` (string) - Domain name
 - `records` (DNSRecord[]) - Records to remove
 
-**Returns:** `Promise<void>`
+**Returns:** `Promise<BatchRemoveResult>` with `removed`, indexed `failures`,
+`succeeded`, and `failed`.
 
 ### DNS Record Types
 
