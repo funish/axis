@@ -1,9 +1,4 @@
-import type {
-  DNSRecord,
-  DNSRecordInput,
-  DNSManagerOptions,
-  RecordOptions,
-} from "./types";
+import type { DNSRecord, DNSRecordInput, DNSManagerOptions, RecordOptions } from "./types";
 
 export function createDNSManager(options: DNSManagerOptions) {
   const driver = options.driver;
@@ -37,7 +32,7 @@ export function createDNSManager(options: DNSManagerOptions) {
         // Fallback: set records one by one if setRecord is available
         if (driver.setRecord) {
           return Promise.all(
-            records.map((record) => driver.setRecord!(domain, record)),
+            records.map((record) => Promise.resolve(driver.setRecord!(domain, record))),
           );
         }
         throw new Error("setRecords not implemented");
@@ -60,7 +55,7 @@ export function createDNSManager(options: DNSManagerOptions) {
         // Fallback: remove records one by one if removeRecord is available
         if (driver.removeRecord) {
           return Promise.all(
-            records.map((record) => driver.removeRecord!(domain, record)),
+            records.map((record) => Promise.resolve(driver.removeRecord!(domain, record))),
           );
         }
         throw new Error("removeRecords not implemented");

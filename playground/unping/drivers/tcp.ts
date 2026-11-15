@@ -3,8 +3,8 @@
  * Demonstrating ping functionality using TCP connections
  */
 
-import { createPingManager } from "../../../packages/unping/src/ping";
 import tcpDriver from "../../../packages/unping/src/drivers/tcp";
+import { createPingManager } from "../../../packages/unping/src/ping";
 
 console.log("TCP Driver Examples\n");
 
@@ -12,17 +12,13 @@ const testHosts = ["cloudflare.com", "google.com", "github.com", "example.com"];
 
 // Helper function: Print single result
 function printResult(result: { host: string; alive: boolean; time: number }) {
-  console.log(
-    `  ${result.host}: ${result.alive ? "OK" : "FAIL"} ${result.time}ms`,
-  );
+  console.log(`  ${result.host}: ${result.alive ? "OK" : "FAIL"} ${result.time}ms`);
 }
 
 // Helper function: Print statistics
 function printStatistics(results: Array<{ alive: boolean; time: number }>) {
   const aliveCount = results.filter((r) => r.alive).length;
-  const avgTime = Math.round(
-    results.reduce((sum, r) => sum + r.time, 0) / results.length,
-  );
+  const avgTime = Math.round(results.reduce((sum, r) => sum + r.time, 0) / results.length);
   console.log("\nStatistics:");
   console.log(`  Success rate: ${aliveCount}/${results.length}`);
   console.log(`  Average time: ${avgTime}ms`);
@@ -87,9 +83,7 @@ async function runBatchExample() {
 
     console.log(`Total connections: ${results.length}`);
     results.forEach((r) => {
-      console.log(
-        `  [${r.sequence}] ${r.host}: ${r.alive ? "OK" : "FAIL"} ${r.time}ms`,
-      );
+      console.log(`  [${r.sequence}] ${r.host}: ${r.alive ? "OK" : "FAIL"} ${r.time}ms`);
     });
 
     printStatistics(results);

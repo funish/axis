@@ -3,8 +3,8 @@
  * Demonstrating GeoIP lookup functionality with ipapi.co service
  */
 
-import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import ipapiCoDriver from "../../../packages/geoip0/src/drivers/ipapiCo";
+import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import type { QueryOptions } from "../../../packages/geoip0/src/types";
 
 console.log("ipapi.co Driver Examples\n");
@@ -169,12 +169,8 @@ try {
   const batchResults = await geoip.batchLookup(testIPs);
   const batchTime = Date.now() - batchStart;
 
-  console.log(
-    `Sequential lookup: ${sequentialTime}ms for ${sequentialResults.length} results`,
-  );
-  console.log(
-    `Constructed batch lookup: ${batchTime}ms for ${batchResults?.length || 0} results`,
-  );
+  console.log(`Sequential lookup: ${sequentialTime}ms for ${sequentialResults.length} results`);
+  console.log(`Constructed batch lookup: ${batchTime}ms for ${batchResults?.length || 0} results`);
   if (batchResults && sequentialTime > 0) {
     console.log(
       `Performance difference: ${batchTime - sequentialTime}ms (${(((batchTime - sequentialTime) / sequentialTime) * 100).toFixed(1)}% ${batchTime > sequentialTime ? "slower" : "faster"})`,

@@ -4,8 +4,9 @@
  */
 
 import { toUint8Array, DataType } from "undio";
-import { bitAt } from "./utils";
+
 import { MMDBMetadata } from "./types";
+import { bitAt } from "./utils";
 
 type NodeReader = (offset: number) => number;
 
@@ -23,17 +24,11 @@ const createNodeReaders = (data: Uint8Array, recordSize: number): Walker => {
       return {
         left: (offset: number): number => {
           // Read 3 bytes big-endian from offset
-          return (
-            (data[offset] << 16) | (data[offset + 1] << 8) | data[offset + 2]
-          );
+          return (data[offset] << 16) | (data[offset + 1] << 8) | data[offset + 2];
         },
         right: (offset: number): number => {
           // Read 3 bytes big-endian from offset + 3
-          return (
-            (data[offset + 3] << 16) |
-            (data[offset + 4] << 8) |
-            data[offset + 5]
-          );
+          return (data[offset + 3] << 16) | (data[offset + 4] << 8) | data[offset + 5];
         },
       };
 
@@ -165,11 +160,7 @@ export class MMDBWalker {
   /**
    * Get data offset from record pointer
    */
-  static getDataOffset(
-    record: number,
-    nodeCount: number,
-    searchTreeSize: number,
-  ): number {
+  static getDataOffset(record: number, nodeCount: number, searchTreeSize: number): number {
     return record - nodeCount + searchTreeSize;
   }
 }

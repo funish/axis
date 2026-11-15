@@ -1,4 +1,5 @@
 import { promises as dnsPromises } from "dns";
+
 import type { Driver, DriverOptions, PingResult, PingOptions } from "../types";
 
 export interface DNSDriverOptions extends DriverOptions {
@@ -52,10 +53,7 @@ export default function dnsDriver(options: DNSDriverOptions = {}): Driver {
     resolver.setServers(servers);
   }
 
-  const ping = async (
-    host: string,
-    opts?: PingOptions,
-  ): Promise<PingResult[]> => {
+  const ping = async (host: string, opts?: PingOptions): Promise<PingResult[]> => {
     const count = opts?.count || 1;
     const timeout = opts?.timeout || 5000;
     const results: PingResult[] = [];

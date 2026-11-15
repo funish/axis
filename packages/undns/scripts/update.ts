@@ -20,8 +20,7 @@ const RESOLVERS_FILE = join(DATA_DIR, "public-resolvers.json");
 async function updateResolversData() {
   console.log("🔄 Updating DNSCrypt resolvers data...");
 
-  const url =
-    "https://download.dnscrypt.info/resolvers-list/json/public-resolvers.json";
+  const url = "https://download.dnscrypt.info/resolvers-list/json/public-resolvers.json";
 
   try {
     console.log(`📥 Fetching resolvers data from ${url}...`);

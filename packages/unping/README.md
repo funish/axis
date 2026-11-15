@@ -110,10 +110,10 @@ console.log(`DNS Resolution: ${results[0].alive ? "Success" : "Failed"}`);
 Smart detection with automatic fallback between multiple drivers.
 
 ```typescript
+import dnsDriver from "unping/drivers/dns";
 import hybridDriver from "unping/drivers/hybrid";
 import tcpDriver from "unping/drivers/tcp";
 import webDriver from "unping/drivers/web";
-import dnsDriver from "unping/drivers/dns";
 
 // Use default driver configuration (TCP → Web → DNS)
 const hybrid = createPingManager({
@@ -148,9 +148,7 @@ const results = await ping.ping("example.com", {
 });
 
 results.forEach((result) => {
-  console.log(
-    `[${result.sequence}] ${result.host}: ${result.alive ? "✓" : "✗"} ${result.time}ms`,
-  );
+  console.log(`[${result.sequence}] ${result.host}: ${result.alive ? "✓" : "✗"} ${result.time}ms`);
 });
 
 // Calculate statistics
@@ -164,17 +162,14 @@ console.log(`Average Time: ${avgTime.toFixed(0)}ms`);
 ### Available Drivers
 
 ```typescript
-// Web driver (application layer - HTTP/HTTPS)
-import webDriver from "unping/drivers/web";
-
-// TCP driver (port reachability)
-import tcpDriver from "unping/drivers/tcp";
-
 // DNS driver (DNS resolution)
 import dnsDriver from "unping/drivers/dns";
-
 // Hybrid driver (smart fallback)
 import hybridDriver from "unping/drivers/hybrid";
+// TCP driver (port reachability)
+import tcpDriver from "unping/drivers/tcp";
+// Web driver (application layer - HTTP/HTTPS)
+import webDriver from "unping/drivers/web";
 ```
 
 ### Advanced Configuration
@@ -362,29 +357,21 @@ The Hybrid Driver provides intelligent network connectivity detection by trying 
 **Custom Driver Configuration Example:**
 
 ```typescript
+import dnsDriver from "unping/drivers/dns";
+import tcpDriver from "unping/drivers/tcp";
 // For web service monitoring - prioritize HTTP
 import webDriver from "unping/drivers/web";
-import tcpDriver from "unping/drivers/tcp";
-import dnsDriver from "unping/drivers/dns";
 
 const webMonitor = createPingManager({
   driver: hybridDriver({
-    drivers: [
-      webDriver({ method: "HEAD", path: "/health" }),
-      tcpDriver({ port: 80 }),
-      dnsDriver(),
-    ],
+    drivers: [webDriver({ method: "HEAD", path: "/health" }), tcpDriver({ port: 80 }), dnsDriver()],
   }),
 });
 
 // For quick connectivity checks - prioritize TCP
 const quickCheck = createPingManager({
   driver: hybridDriver({
-    drivers: [
-      tcpDriver({ port: 443 }),
-      dnsDriver(),
-      webDriver({ method: "GET" }),
-    ],
+    drivers: [tcpDriver({ port: 443 }), dnsDriver(), webDriver({ method: "GET" })],
   }),
 });
 ```
@@ -425,18 +412,14 @@ for (const port of ports) {
 ### Network Diagnostics
 
 ```typescript
+import dnsDriver from "unping/drivers/dns";
 import hybridDriver from "unping/drivers/hybrid";
 import tcpDriver from "unping/drivers/tcp";
 import webDriver from "unping/drivers/web";
-import dnsDriver from "unping/drivers/dns";
 
 const diagnostic = createPingManager({
   driver: hybridDriver({
-    drivers: [
-      tcpDriver({ port: 80 }),
-      webDriver({ method: "HEAD" }),
-      dnsDriver(),
-    ],
+    drivers: [tcpDriver({ port: 80 }), webDriver({ method: "HEAD" }), dnsDriver()],
   }),
 });
 

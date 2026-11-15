@@ -2,71 +2,70 @@
   "name": "geoip0",
   "version": "0.0.12",
   "description": "Unified geolocation information query library with multi-provider and fallback support",
-  "main": "dist/index.mjs",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
-    },
-    "./drivers/*": {
-      "import": "./dist/drivers/*.mjs",
-      "require": "./dist/drivers/*.cjs",
-      "types": "./dist/drivers/*.d.ts"
-    },
-    "./server": {
-      "import": "./dist/server.mjs",
-      "require": "./dist/server.cjs",
-      "types": "./dist/server.d.ts"
-    },
-    "./mmdb": {
-      "import": "./dist/mmdb.mjs",
-      "require": "./dist/mmdb.cjs",
-      "types": "./dist/mmdb.d.ts"
-    }
-  },
-  "scripts": {
-    "dev": "unbuild --stub",
-    "build": "unbuild",
-    "prepack": "pnpm build"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/funish/axis.git"
-  },
   "keywords": [
-    "geolocation",
-    "ip",
+    "asn",
+    "fallback",
     "geoip",
-    "location",
-    "ip-address",
+    "geolocation",
     "geolocation-api",
+    "ip",
+    "ip-address",
+    "ip-location",
     "ipv4",
     "ipv6",
-    "ip-location",
-    "asn",
     "isp",
-    "mmdb",
+    "location",
     "maxmind",
-    "fallback",
+    "mmdb",
     "multi-driver",
     "rdap",
     "registry-data",
     "typescript"
   ],
+  "homepage": "https://github.com/funish/axis#readme",
+  "bugs": {
+    "url": "https://github.com/funish/axis/issues"
+  },
+  "license": "MIT",
   "author": {
     "name": "Funish",
     "email": "contact@funish.net",
     "url": "http://www.funish.net/"
   },
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/funish/axis/issues"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/funish/axis.git"
   },
-  "homepage": "https://github.com/funish/axis#readme",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./drivers/*": {
+      "types": "./dist/drivers/*.d.mts",
+      "import": "./dist/drivers/*.mjs"
+    },
+    "./server": {
+      "types": "./dist/server.d.mts",
+      "import": "./dist/server.mjs"
+    },
+    "./mmdb": {
+      "types": "./dist/mmdb.d.mts",
+      "import": "./dist/mmdb.mjs"
+    }
+  },
+  "scripts": {
+    "dev": "basis build --stub",
+    "build": "vp pack",
+    "prepack": "pnpm build",
+    "release": "basis publish"
+  },
   "dependencies": {
     "h3": "2.0.1-rc.5",
     "ipdo": "workspace:*",

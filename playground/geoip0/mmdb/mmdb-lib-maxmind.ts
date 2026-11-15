@@ -5,6 +5,7 @@
 
 import { readFile } from "fs/promises";
 import { join } from "path";
+
 import { Reader } from "mmdb-lib";
 
 async function runOriginalMMDBLibTest() {

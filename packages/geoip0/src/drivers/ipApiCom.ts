@@ -1,4 +1,5 @@
 import { ofetch } from "ofetch";
+
 import type { Driver, GeoLocation, QueryOptions, DriverOptions } from "..";
 
 // IP-API.com response interface
@@ -42,13 +43,8 @@ export interface IpApiComOptions extends DriverOptions {
 const DEFAULT_FIELDS =
   "status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,mobile,proxy,hosting,query";
 
-export default function ipApiComDriver(
-  options: IpApiComOptions = {},
-): Driver<IpApiComOptions> {
-  const lookup = async (
-    ip: string,
-    _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation> => {
+export default function ipApiComDriver(options: IpApiComOptions = {}): Driver<IpApiComOptions> {
+  const lookup = async (ip: string, _queryOptions?: QueryOptions): Promise<GeoLocation> => {
     try {
       const fields = options.fields || DEFAULT_FIELDS;
       const lang = options.lang || "en";
@@ -82,10 +78,7 @@ export default function ipApiComDriver(
         country: data.country || "",
         countryCode: data.countryCode || "",
         region: data.regionName || data.region || "",
-        regionCode:
-          data.region && data.countryCode
-            ? `${data.countryCode}-${data.region}`
-            : "",
+        regionCode: data.region && data.countryCode ? `${data.countryCode}-${data.region}` : "",
         city: data.city || "",
         latitude: data.lat || 0,
         longitude: data.lon || 0,
@@ -118,9 +111,7 @@ export default function ipApiComDriver(
     }
   };
 
-  const current = async (
-    _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation> => {
+  const current = async (_queryOptions?: QueryOptions): Promise<GeoLocation> => {
     try {
       let url = "http://ip-api.com/json";
 
@@ -158,10 +149,7 @@ export default function ipApiComDriver(
         country: data.country || "",
         countryCode: data.countryCode || "",
         region: data.regionName || data.region || "",
-        regionCode:
-          data.region && data.countryCode
-            ? `${data.countryCode}-${data.region}`
-            : "",
+        regionCode: data.region && data.countryCode ? `${data.countryCode}-${data.region}` : "",
         city: data.city || "",
         latitude: data.lat || 0,
         longitude: data.lon || 0,
@@ -231,10 +219,7 @@ export default function ipApiComDriver(
             country: data.country || "",
             countryCode: data.countryCode || "",
             region: data.regionName || data.region || "",
-            regionCode:
-              data.region && data.countryCode
-                ? `${data.countryCode}-${data.region}`
-                : "",
+            regionCode: data.region && data.countryCode ? `${data.countryCode}-${data.region}` : "",
             city: data.city || "",
             latitude: data.lat || 0,
             longitude: data.lon || 0,

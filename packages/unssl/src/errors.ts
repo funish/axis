@@ -33,8 +33,7 @@ export class UnsslError extends Error {
     this.provider = options.provider;
     this.status = options.status;
     this.retryable =
-      options.retryable ??
-      (options.code === "network" || options.code === "rate_limited");
+      options.retryable ?? (options.code === "network" || options.code === "rate_limited");
     this.details = options.details;
   }
 }
@@ -46,11 +45,7 @@ export function notSupported(operation: string, provider?: string): UnsslError {
   });
 }
 
-export function classifyHttpError(
-  status: number,
-  provider: string,
-  details?: unknown,
-): UnsslError {
+export function classifyHttpError(status: number, provider: string, details?: unknown): UnsslError {
   const code =
     status === 400
       ? "invalid_request"
@@ -71,19 +66,13 @@ export function classifyHttpError(
   });
 }
 
-export function wrapUnknownError(
-  error: unknown,
-  provider?: string,
-): UnsslError {
+export function wrapUnknownError(error: unknown, provider?: string): UnsslError {
   if (error instanceof UnsslError) {
     return error;
   }
-  return new UnsslError(
-    error instanceof Error ? error.message : String(error),
-    {
-      code: "provider_error",
-      provider,
-      cause: error,
-    },
-  );
+  return new UnsslError(error instanceof Error ? error.message : String(error), {
+    code: "provider_error",
+    provider,
+    cause: error,
+  });
 }

@@ -104,15 +104,12 @@ if (recordToRemove) {
 ### Available Drivers
 
 ```typescript
-// Node.js DNS driver (read-only)
-import nodeDriver from "undns/drivers/node";
-
 // Cloudflare DNS driver (read-write)
 import cloudflareDriver from "undns/drivers/cloudflare";
-
 // DNS over HTTPS driver (read-only)
 import dohDriver from "undns/drivers/doh";
-
+// Node.js DNS driver (read-only)
+import nodeDriver from "undns/drivers/node";
 // Null driver (for testing)
 import nullDriver from "undns/drivers/null";
 ```

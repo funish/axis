@@ -14,6 +14,7 @@ This is a monorepo that contains the following packages:
 - **[undns](./packages/undns/README.md)** - Core DNS management library with unified API
 - **[geoip0](./packages/geoip0/README.md)** - Unified geolocation information query library with multi-provider support
 - **[unping](./packages/unping/README.md)** - Unified network connectivity detection library with multi-driver support
+- **[unssl](./packages/unssl/README.md)** - Unified TLS certificate lifecycle library with multi-driver support
 
 ## Quick Start
 
@@ -74,11 +75,7 @@ const location = await geoip.lookup("1.1.1.1");
 const currentLocation = await geoip.current();
 
 console.log("Location for 1.1.1.1:", location?.country, location?.city);
-console.log(
-  "Current IP location:",
-  currentLocation?.country,
-  currentLocation?.city,
-);
+console.log("Current IP location:", currentLocation?.country, currentLocation?.city);
 
 // Network connectivity detection with unping
 import { createPingManager } from "unping";
@@ -89,9 +86,7 @@ const ping = createPingManager({
 });
 
 const results = await ping.ping("example.com");
-console.log(
-  `Host is ${results[0].alive ? "reachable" : "unreachable"} (${results[0].time}ms)`,
-);
+console.log(`Host is ${results[0].alive ? "reachable" : "unreachable"} (${results[0].time}ms)`);
 ```
 
 ### Development
@@ -103,14 +98,17 @@ pnpm dev
 # Build the project
 pnpm build
 
-# Run linting
-pnpm lint
+# Run format, lint, and type checks
+pnpm check
 
-# Test the implementation
-bun playground/drivers/node.ts
-bun playground/geoip0/drivers/ipsb.ts
-bun playground/geoip0/server.ts
-bun playground/unping/drivers/tcp.ts
+# Run tests
+pnpm test
+
+# Run playground examples
+pnpm exec vpx playground/drivers/node.ts
+pnpm exec vpx playground/geoip0/drivers/ipsb.ts
+pnpm exec vpx playground/geoip0/server.ts
+pnpm exec vpx playground/unping/drivers/tcp.ts
 ```
 
 ## Contributing
@@ -148,10 +146,12 @@ We welcome contributions! Here's how to get started:
 ### Development Workflow
 
 1. **Code**: Follow our project standards
-2. **Test**: `pnpm build`
-3. **Commit**: Use conventional commits (`feat:`, `fix:`, etc.)
-4. **Push**: Push to your fork
-5. **Submit**: Create a Pull Request to upstream repository
+2. **Check**: `pnpm check`
+3. **Test**: `pnpm test`
+4. **Build**: `pnpm build`
+5. **Commit**: Use conventional commits (`feat:`, `fix:`, etc.)
+6. **Push**: Push to your fork
+7. **Submit**: Create a Pull Request to upstream repository
 
 ## Support & Community
 

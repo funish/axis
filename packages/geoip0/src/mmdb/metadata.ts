@@ -3,9 +3,10 @@
  * Parses MaxMind database metadata section
  */
 
-import type { MMDBMetadata } from "./types";
 import { toUint8Array, DataType } from "undio";
+
 import { MMDBDecoder } from "./decoder";
+import type { MMDBMetadata } from "./types";
 
 /**
  * MMDB metadata parser
@@ -36,8 +37,7 @@ export class MMDBMetadataParser {
    */
   private static findMetadataStart(data: Uint8Array): number {
     const METADATA_START_MARKER = new Uint8Array([
-      0xab, 0xcd, 0xef, 0x4d, 0x61, 0x78, 0x4d, 0x69, 0x6e, 0x64, 0x2e, 0x63,
-      0x6f, 0x6d,
+      0xab, 0xcd, 0xef, 0x4d, 0x61, 0x78, 0x4d, 0x69, 0x6e, 0x64, 0x2e, 0x63, 0x6f, 0x6d,
     ]);
 
     // Simple linear search from end (same as debug script)
@@ -68,12 +68,8 @@ export class MMDBMetadataParser {
     }
 
     return {
-      binaryFormatMajorVersion: Number(
-        metadata.binary_format_major_version || 0,
-      ),
-      binaryFormatMinorVersion: Number(
-        metadata.binary_format_minor_version || 0,
-      ),
+      binaryFormatMajorVersion: Number(metadata.binary_format_major_version || 0),
+      binaryFormatMinorVersion: Number(metadata.binary_format_minor_version || 0),
       buildEpoch: Number(metadata.build_epoch || 0),
       databaseType: String(metadata.database_type || ""),
       languages: Array.isArray(metadata.languages) ? metadata.languages : [],
@@ -83,8 +79,7 @@ export class MMDBMetadataParser {
       recordSize: Number(metadata.record_size || 0),
       nodeByteSize: Math.floor((Number(metadata.record_size || 0) * 2) / 8),
       searchTreeSize:
-        Number(metadata.node_count || 0) *
-        Math.floor((Number(metadata.record_size || 0) * 2) / 8),
+        Number(metadata.node_count || 0) * Math.floor((Number(metadata.record_size || 0) * 2) / 8),
       treeDepth: this.calculateTreeDepth(Number(metadata.node_count || 0)),
     };
   }

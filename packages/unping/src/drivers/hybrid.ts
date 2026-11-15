@@ -4,15 +4,10 @@ export interface HybridDriverOptions extends DriverOptions {
   drivers: Driver[];
 }
 
-export default function hybridDriver(
-  options: HybridDriverOptions,
-): Driver<HybridDriverOptions> {
+export default function hybridDriver(options: HybridDriverOptions): Driver<HybridDriverOptions> {
   const { drivers } = options;
 
-  const ping = async (
-    host: string,
-    opts?: PingOptions,
-  ): Promise<PingResult[]> => {
+  const ping = async (host: string, opts?: PingOptions): Promise<PingResult[]> => {
     for (const driver of drivers) {
       try {
         const result = await driver.ping!(host, opts);

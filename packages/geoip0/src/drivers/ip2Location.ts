@@ -1,4 +1,5 @@
 import { ofetch } from "ofetch";
+
 import type { Driver, GeoLocation, QueryOptions, DriverOptions } from "..";
 
 // ip2location.io response interface
@@ -31,10 +32,7 @@ const DEFAULT_API_KEY = "4BDAB89AAD40944958DA8EBDBB1CC7F1";
 export default function ip2LocationDriver(
   options: Ip2LocationOptions = {},
 ): Driver<Ip2LocationOptions> {
-  const lookup = async (
-    ip: string,
-    _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  const lookup = async (ip: string, _queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
       const apiKey = options.key || DEFAULT_API_KEY;
 
@@ -72,9 +70,7 @@ export default function ip2LocationDriver(
     }
   };
 
-  const current = async (
-    _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  const current = async (_queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
       const apiKey = options.key || DEFAULT_API_KEY;
 

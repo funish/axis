@@ -1,4 +1,5 @@
 import { ofetch } from "ofetch";
+
 import type { Driver, GeoLocation, QueryOptions, DriverOptions } from "..";
 
 // Cloudflare Radar IP Check API response interface
@@ -52,10 +53,7 @@ export interface CloudflareOptions extends DriverOptions {}
 export default function cloudflareDriver(
   options: CloudflareOptions = {},
 ): Driver<CloudflareOptions> {
-  const lookup = async (
-    ip: string,
-    _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  const lookup = async (ip: string, _queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
       // Step 1: Get GeolocationPanel data first
       const geoResponse: CloudflareGeoResponse = await ofetch(
@@ -92,8 +90,7 @@ export default function cloudflareDriver(
       let countryName = countryCode; // Default to country code
       if (asnResponse.asn.estimatedUsers?.locations && countryCode) {
         const locationMatch = asnResponse.asn.estimatedUsers.locations.find(
-          (loc) =>
-            loc.locationAlpha2.toLowerCase() === countryCode.toLowerCase(),
+          (loc) => loc.locationAlpha2.toLowerCase() === countryCode.toLowerCase(),
         );
         // Use location name as country name if found
         if (locationMatch?.locationName) {
@@ -123,9 +120,7 @@ export default function cloudflareDriver(
     }
   };
 
-  const current = async (
-    queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  const current = async (queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
       const version = queryOptions?.version || "auto";
       let url = "https://ip-check-perf.radar.cloudflare.com/";

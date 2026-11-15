@@ -1,4 +1,5 @@
 import { ofetch } from "ofetch";
+
 import type { Driver, GeoLocation, QueryOptions, DriverOptions } from "..";
 
 // Free IP API response interface
@@ -32,17 +33,10 @@ export interface FreeIPAPIBulkResponse {
 // Free IP API Driver options
 export interface FreeIPAPIOptions extends DriverOptions {}
 
-export default function freeipapiDriver(
-  options: FreeIPAPIOptions = {},
-): Driver<FreeIPAPIOptions> {
-  const lookup = async (
-    ip: string,
-    _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+export default function freeipapiDriver(options: FreeIPAPIOptions = {}): Driver<FreeIPAPIOptions> {
+  const lookup = async (ip: string, _queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
-      const data: FreeIPAPIResponse = await ofetch(
-        `https://freeipapi.com/api/json/${ip}`,
-      );
+      const data: FreeIPAPIResponse = await ofetch(`https://freeipapi.com/api/json/${ip}`);
 
       return {
         ip: data.ipAddress,
@@ -66,9 +60,7 @@ export default function freeipapiDriver(
     }
   };
 
-  const current = async (
-    queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  const current = async (queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
       const version = queryOptions?.version || "auto";
       let url = "https://freeipapi.com/api/json";
@@ -110,18 +102,15 @@ export default function freeipapiDriver(
     _queryOptions?: QueryOptions,
   ): Promise<GeoLocation[]> => {
     try {
-      const response: FreeIPAPIBulkResponse = await ofetch(
-        "https://freeipapi.com/api/bulk/json",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: {
-            ips,
-          },
+      const response: FreeIPAPIBulkResponse = await ofetch("https://freeipapi.com/api/bulk/json", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: {
+          ips,
+        },
+      });
 
       // Convert bulk API response to GeoLocation array
       const results: GeoLocation[] = [];

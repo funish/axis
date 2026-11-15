@@ -1,4 +1,5 @@
 import { ofetch } from "ofetch";
+
 import type { Driver, DriverOptions, PingResult, PingOptions } from "../types";
 
 /**
@@ -81,10 +82,7 @@ export async function pingOnceWeb(
 export default function webDriver(options: WebDriverOptions = {}): Driver {
   const { method = "HEAD", path = "/", headers = {} } = options;
 
-  const ping = async (
-    host: string,
-    opts?: PingOptions,
-  ): Promise<PingResult[]> => {
+  const ping = async (host: string, opts?: PingOptions): Promise<PingResult[]> => {
     const count = opts?.count || 1;
     const timeout = opts?.timeout || 5000;
     const results: PingResult[] = [];
@@ -94,16 +92,7 @@ export default function webDriver(options: WebDriverOptions = {}): Driver {
     const port = options.port || (protocol === "https" ? 443 : 80);
 
     for (let i = 0; i < count; i++) {
-      const result = await pingOnceWeb(
-        host,
-        protocol,
-        port,
-        path,
-        method,
-        timeout,
-        headers,
-        i + 1,
-      );
+      const result = await pingOnceWeb(host, protocol, port, path, method, timeout, headers, i + 1);
       results.push(result);
 
       // Add interval if count > 1

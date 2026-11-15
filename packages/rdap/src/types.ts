@@ -116,12 +116,7 @@ export type VCardPropertyType =
   | "caladruri"
   | "caluri";
 
-export type VCardProperty = [
-  VCardPropertyType,
-  Record<string, string>,
-  string,
-  string,
-];
+export type VCardProperty = [VCardPropertyType, Record<string, string>, string, string];
 export type VCardArray = ["vcard", VCardProperty[]];
 
 export interface RdapEntity extends RdapCommon {
@@ -254,13 +249,7 @@ export type RdapResponse =
 /**
  * RDAP query types
  */
-export type RdapQueryType =
-  | "domain"
-  | "nameserver"
-  | "entity"
-  | "ip"
-  | "autnum"
-  | "help";
+export type RdapQueryType = "domain" | "nameserver" | "entity" | "ip" | "autnum" | "help";
 
 /**
  * RDAP bootstrap service types

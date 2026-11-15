@@ -1,4 +1,5 @@
 import { createDNSManager, formatRecord, groupRecordsByType } from "undns";
+
 import nodeDriver from "../../../packages/undns/src/drivers/node";
 
 // Create DNS manager with Node.js driver
@@ -34,15 +35,9 @@ async function testNodeDriver() {
 
     // Test hasRecord method
     console.log(`\nRecord existence checks for ${testDomain}:`);
-    console.log(
-      `  Has A records? ${await dns.hasRecord(testDomain, { type: "A" })}`,
-    );
-    console.log(
-      `  Has MX records? ${await dns.hasRecord(testDomain, { type: "MX" })}`,
-    );
-    console.log(
-      `  Has TXT records? ${await dns.hasRecord(testDomain, { type: "TXT" })}`,
-    );
+    console.log(`  Has A records? ${await dns.hasRecord(testDomain, { type: "A" })}`);
+    console.log(`  Has MX records? ${await dns.hasRecord(testDomain, { type: "MX" })}`);
+    console.log(`  Has TXT records? ${await dns.hasRecord(testDomain, { type: "TXT" })}`);
 
     // Test write operations (should fail - read-only driver)
     console.log("\nWrite operations (expected to fail):");

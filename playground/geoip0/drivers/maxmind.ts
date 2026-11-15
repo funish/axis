@@ -4,13 +4,14 @@
  * Both MMDB database and Web Service modes
  */
 
-import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
+import { readFile } from "fs/promises";
+import { resolve } from "path";
+
 import maxmindDriver, {
   type MaxMindMMDBOptions,
   type MaxMindWebOptions,
 } from "../../../packages/geoip0/src/drivers/maxmind";
-import { readFile } from "fs/promises";
-import { resolve } from "path";
+import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import { QueryOptions } from "../../../packages/geoip0/src/types";
 
 console.log("MaxMind Driver Examples\n");
@@ -18,9 +19,7 @@ console.log("MaxMind Driver Examples\n");
 async function runExamples() {
   try {
     // Load MMDB test database
-    const mmdbData = await readFile(
-      resolve(__dirname, "../mmdb/GeoIP2-City-Test.mmdb"),
-    );
+    const mmdbData = await readFile(resolve(__dirname, "../mmdb/GeoIP2-City-Test.mmdb"));
 
     console.log("=== MMDB Database Mode ===");
 
@@ -205,9 +204,7 @@ async function runExamples() {
         console.log(`Timezone: ${result.timezone || "N/A"}`);
         console.log(`Source: ${result.source}`);
       } else {
-        console.log(
-          "No data found for this IPv6 address (likely using fallback MMDB)",
-        );
+        console.log("No data found for this IPv6 address (likely using fallback MMDB)");
       }
     } catch (error) {
       console.log("Error:", (error as Error).message);
@@ -253,11 +250,7 @@ async function runExamples() {
     console.log("\n=== Different Web Service Types ===");
 
     // Test different MaxMind web services
-    const services: Array<MaxMindWebOptions["service"]> = [
-      "country",
-      "city",
-      "insights",
-    ];
+    const services: Array<MaxMindWebOptions["service"]> = ["country", "city", "insights"];
 
     for (const service of services) {
       console.log(`\n--- ${service?.toUpperCase()} Service ---`);
@@ -281,10 +274,7 @@ async function runExamples() {
           console.log(`  No data from ${service} service (using fallback)`);
         }
       } catch (error) {
-        console.log(
-          `  Error with ${service} service:`,
-          (error as Error).message,
-        );
+        console.log(`  Error with ${service} service:`, (error as Error).message);
       }
     }
 

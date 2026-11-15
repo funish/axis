@@ -161,14 +161,8 @@
     [["wme"], ["https://rdap.centralnic.com/wme/"]],
     [["xn--4gbrim"], ["https://rdap.centralnic.com/xn--4gbrim/"]],
     [["xn--ngbe9e0a"], ["https://rdap.centralnic.com/xn--ngbe9e0a/"]],
-    [
-      ["xn--vermgensberater-ctb"],
-      ["https://rdap.centralnic.com/xn--vermgensberater-ctb/"]
-    ],
-    [
-      ["xn--vermgensberatung-pwb"],
-      ["https://rdap.centralnic.com/xn--vermgensberatung-pwb/"]
-    ],
+    [["xn--vermgensberater-ctb"], ["https://rdap.centralnic.com/xn--vermgensberater-ctb/"]],
+    [["xn--vermgensberatung-pwb"], ["https://rdap.centralnic.com/xn--vermgensberatung-pwb/"]],
     [["xyz"], ["https://rdap.centralnic.com/xyz/"]],
     [["yachts"], ["https://rdap.centralnic.com/yachts/"]],
     [["zuerich"], ["https://rdap.centralnic.com/zuerich/"]],
@@ -1114,10 +1108,7 @@
     [["si"], ["https://rdap.register.si/"]],
     [["br"], ["https://rdap.registro.br/"]],
     [["bar", "rest"], ["https://rdap.registry.bar/rdap/"]],
-    [
-      ["feedback", "forum", "observer", "pid", "realty"],
-      ["https://rdap.registry.click/rdap/"]
-    ],
+    [["feedback", "forum", "observer", "pid", "realty"], ["https://rdap.registry.click/rdap/"]],
     [["cloud"], ["https://rdap.registry.cloud/rdap/"]],
     [["coop", "creditunion"], ["https://rdap.registry.coop/rdap/"]],
     [["ec"], ["https://rdap.registry.ec/"]],
@@ -1126,15 +1117,9 @@
     [["love"], ["https://rdap.registry.love/rdap/"]],
     [["music"], ["https://rdap.registryservices.music/rdap/"]],
     [["rw"], ["https://rdap.ricta.org.rw/"]],
-    [
-      ["cologne", "koeln", "tirol", "wien"],
-      ["https://rdap.ryce-rsp.com/rdap/"]
-    ],
+    [["cologne", "koeln", "tirol", "wien"], ["https://rdap.ryce-rsp.com/rdap/"]],
     [["nl"], ["https://rdap.sidn.nl/"]],
-    [
-      ["anquan", "shouji", "xihuan", "xn--vuq861b", "yun"],
-      ["https://rdap.teleinfo.cn/"]
-    ],
+    [["anquan", "shouji", "xihuan", "xn--vuq861b", "yun"], ["https://rdap.teleinfo.cn/"]],
     [["xn--3ds443g"], ["https://rdap.teleinfo.cn/xn--3ds443g/"]],
     [["xn--fiq228c5hs"], ["https://rdap.teleinfo.cn/xn--fiq228c5hs/"]],
     [["xn--kput3i"], ["https://rdap.teleinfo.cn/xn--kput3i/"]],
@@ -1186,10 +1171,7 @@
     [["xn--imr513n"], ["https://rdap.zdnsgtld.com/xn--imr513n/"]],
     [["xn--otu796d"], ["https://rdap.zdnsgtld.com/xn--otu796d/"]],
     [["xn--ses554g"], ["https://rdap.zdnsgtld.com/xn--ses554g/"]],
-    [
-      ["xn--1qqw23a", "xn--55qx5d", "xn--io0a7i", "xn--xhq521b"],
-      ["https://restwhois.ngtld.cn/"]
-    ],
+    [["xn--1qqw23a", "xn--55qx5d", "xn--io0a7i", "xn--xhq521b"], ["https://restwhois.ngtld.cn/"]],
     [["airtel"], ["https://tld-rdap.verisign.com/airtel/v1/"]],
     [["bharti"], ["https://tld-rdap.verisign.com/bharti/v1/"]],
     [["cc"], ["https://tld-rdap.verisign.com/cc/v1/"]],
@@ -1200,10 +1182,7 @@
     [["xn--11b4c3d"], ["https://tld-rdap.verisign.com/xn--11b4c3d/v1/"]],
     [["xn--3pxu8k"], ["https://tld-rdap.verisign.com/xn--3pxu8k/v1/"]],
     [["xn--42c2d9a"], ["https://tld-rdap.verisign.com/xn--42c2d9a/v1/"]],
-    [
-      ["xn--5su34j936bgsg"],
-      ["https://tld-rdap.verisign.com/xn--5su34j936bgsg/v1/"]
-    ],
+    [["xn--5su34j936bgsg"], ["https://tld-rdap.verisign.com/xn--5su34j936bgsg/v1/"]],
     [["xn--9dbq2a"], ["https://tld-rdap.verisign.com/xn--9dbq2a/v1/"]],
     [["xn--c2br7g"], ["https://tld-rdap.verisign.com/xn--c2br7g/v1/"]],
     [["xn--fhbei"], ["https://tld-rdap.verisign.com/xn--fhbei/v1/"]],
@@ -1212,10 +1191,7 @@
     [["xn--pssy2u"], ["https://tld-rdap.verisign.com/xn--pssy2u/v1/"]],
     [["xn--t60b56a"], ["https://tld-rdap.verisign.com/xn--t60b56a/v1/"]],
     [["xn--tckwe"], ["https://tld-rdap.verisign.com/xn--tckwe/v1/"]],
-    [
-      ["xn--w4r85el8fhu5dnra"],
-      ["https://tld-rdap.verisign.com/xn--w4r85el8fhu5dnra/v1/"]
-    ],
+    [["xn--w4r85el8fhu5dnra"], ["https://tld-rdap.verisign.com/xn--w4r85el8fhu5dnra/v1/"]],
     [["xn--w4rs40l"], ["https://tld-rdap.verisign.com/xn--w4rs40l/v1/"]],
     [["ky"], ["https://whois.kyregistry.ky/rdap/"]],
     [["mtr"], ["https://whois.nic.mtr/rdap/"]],

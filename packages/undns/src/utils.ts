@@ -1,78 +1,55 @@
 import type { AnyRecord } from "node:dns";
+
 import type { DNSRecord } from "./types";
 
 // Type guard functions for DNS records
 // These functions help TypeScript narrow down the union types for safer type access
 
-export function isARecord(
-  record: DNSRecord,
-): record is Extract<AnyRecord, { type: "A" }> {
+export function isARecord(record: DNSRecord): record is Extract<AnyRecord, { type: "A" }> {
   return record.type === "A";
 }
 
-export function isAaaaRecord(
-  record: DNSRecord,
-): record is Extract<AnyRecord, { type: "AAAA" }> {
+export function isAaaaRecord(record: DNSRecord): record is Extract<AnyRecord, { type: "AAAA" }> {
   return record.type === "AAAA";
 }
 
-export function isMxRecord(
-  record: DNSRecord,
-): record is Extract<AnyRecord, { type: "MX" }> {
+export function isMxRecord(record: DNSRecord): record is Extract<AnyRecord, { type: "MX" }> {
   return record.type === "MX";
 }
 
-export function isTxtRecord(
-  record: DNSRecord,
-): record is Extract<AnyRecord, { type: "TXT" }> {
+export function isTxtRecord(record: DNSRecord): record is Extract<AnyRecord, { type: "TXT" }> {
   return record.type === "TXT";
 }
 
-export function isNsRecord(
-  record: DNSRecord,
-): record is Extract<AnyRecord, { type: "NS" }> {
+export function isNsRecord(record: DNSRecord): record is Extract<AnyRecord, { type: "NS" }> {
   return record.type === "NS";
 }
 
-export function isCnameRecord(
-  record: DNSRecord,
-): record is Extract<AnyRecord, { type: "CNAME" }> {
+export function isCnameRecord(record: DNSRecord): record is Extract<AnyRecord, { type: "CNAME" }> {
   return record.type === "CNAME";
 }
 
-export function isSoaRecord(
-  record: DNSRecord,
-): record is Extract<AnyRecord, { type: "SOA" }> {
+export function isSoaRecord(record: DNSRecord): record is Extract<AnyRecord, { type: "SOA" }> {
   return record.type === "SOA";
 }
 
-export function isSrvRecord(
-  record: DNSRecord,
-): record is Extract<AnyRecord, { type: "SRV" }> {
+export function isSrvRecord(record: DNSRecord): record is Extract<AnyRecord, { type: "SRV" }> {
   return record.type === "SRV";
 }
 
-export function isCaaRecord(
-  record: DNSRecord,
-): record is Extract<AnyRecord, { type: "CAA" }> {
+export function isCaaRecord(record: DNSRecord): record is Extract<AnyRecord, { type: "CAA" }> {
   return record.type === "CAA";
 }
 
-export function isPtrRecord(
-  record: DNSRecord,
-): record is Extract<AnyRecord, { type: "PTR" }> {
+export function isPtrRecord(record: DNSRecord): record is Extract<AnyRecord, { type: "PTR" }> {
   return record.type === "PTR";
 }
 
-export function isNaptrRecord(
-  record: DNSRecord,
-): record is Extract<AnyRecord, { type: "NAPTR" }> {
+export function isNaptrRecord(record: DNSRecord): record is Extract<AnyRecord, { type: "NAPTR" }> {
   return record.type === "NAPTR";
 }
 
-export function isTlsaRecord(
-  record: DNSRecord,
-): record is Extract<AnyRecord, { type: "TLSA" }> {
+export function isTlsaRecord(record: DNSRecord): record is Extract<AnyRecord, { type: "TLSA" }> {
   return record.type === "TLSA";
 }
 
@@ -146,9 +123,7 @@ export function formatRecord(record: DNSRecord): string {
 }
 
 // Helper function to group records by type
-export function groupRecordsByType(
-  records: DNSRecord[],
-): Record<string, DNSRecord[]> {
+export function groupRecordsByType(records: DNSRecord[]): Record<string, DNSRecord[]> {
   const groups: Record<string, DNSRecord[]> = {};
 
   records.forEach((record) => {

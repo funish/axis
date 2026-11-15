@@ -2,62 +2,67 @@
   "name": "undns",
   "version": "0.0.11",
   "description": "Unified DNS library with multi-driver support, DoH server, and comprehensive record management",
-  "main": "dist/index.mjs",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
-    },
-    "./drivers/*": {
-      "import": "./dist/drivers/*.mjs",
-      "require": "./dist/drivers/*.cjs",
-      "types": "./dist/drivers/*.d.ts"
-    },
-    "./servers/*": {
-      "import": "./dist/servers/*.mjs",
-      "require": "./dist/servers/*.cjs",
-      "types": "./dist/servers/*.d.ts"
-    }
-  },
-  "scripts": {
-    "dev": "unbuild --stub",
-    "build": "unbuild",
-    "prepack": "pnpm build"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/funish/axis.git"
-  },
   "keywords": [
+    "cloudflare",
     "dns",
     "dns-management",
-    "doh",
-    "rfc8484",
-    "cloudflare",
-    "vercel",
     "dnspod",
+    "doh",
     "domain",
-    "records",
-    "typescript",
-    "nodejs",
     "h3",
+    "naptr",
+    "nodejs",
+    "records",
+    "rfc8484",
     "tlsa",
-    "naptr"
+    "typescript",
+    "vercel"
   ],
+  "homepage": "https://github.com/funish/axis#readme",
+  "bugs": {
+    "url": "https://github.com/funish/axis/issues"
+  },
+  "license": "MIT",
   "author": {
     "name": "Funish",
     "email": "contact@funish.net",
     "url": "http://www.funish.net/"
   },
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/funish/axis/issues"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/funish/axis.git"
   },
-  "homepage": "https://github.com/funish/axis#readme",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./drivers/*": {
+      "types": "./dist/drivers/*.d.mts",
+      "import": "./dist/drivers/*.mjs"
+    },
+    "./servers/*": {
+      "types": "./dist/servers/*.d.mts",
+      "import": "./dist/servers/*.mjs"
+    }
+  },
+  "scripts": {
+    "dev": "basis build --stub",
+    "build": "vp pack",
+    "prepack": "pnpm build",
+    "release": "basis publish"
+  },
+  "dependencies": {
+    "h3": "2.0.1-rc.5",
+    "ipdo": "workspace:*",
+    "ofetch": "1.4.1"
+  },
   "peerDependencies": {
     "cloudflare": "^5.2.0"
   },
@@ -65,10 +70,5 @@
     "cloudflare": {
       "optional": true
     }
-  },
-  "dependencies": {
-    "h3": "2.0.1-rc.5",
-    "ipdo": "workspace:*",
-    "ofetch": "1.4.1"
   }
 }

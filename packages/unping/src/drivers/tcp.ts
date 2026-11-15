@@ -1,4 +1,5 @@
 import { Socket } from "net";
+
 import type { Driver, DriverOptions, PingResult, PingOptions } from "../types";
 
 export interface TCPDriverOptions extends DriverOptions {
@@ -64,10 +65,7 @@ export async function pingOnceTCP(
 export default function tcpDriver(options: TCPDriverOptions = {}): Driver {
   const { port = 80, connectTimeout = 5000 } = options;
 
-  const ping = async (
-    host: string,
-    opts?: PingOptions,
-  ): Promise<PingResult[]> => {
+  const ping = async (host: string, opts?: PingOptions): Promise<PingResult[]> => {
     const count = opts?.count || 1;
     const timeout = opts?.timeout || connectTimeout;
     const results: PingResult[] = [];

@@ -4,17 +4,12 @@
  * Provides HTTP endpoints for geolocation queries
  */
 
-import {
-  defineHandler,
-  EventHandlerRequest,
-  EventHandlerWithFetch,
-  H3,
-  serve,
-} from "h3";
+import { defineHandler, EventHandlerRequest, EventHandlerWithFetch, H3, serve } from "h3";
 import { HTTPError } from "h3";
 import { isValidIP } from "ipdo";
-import type { GeoLocation, QueryOptions, Driver } from "./types";
+
 import { createGeoIPManager } from "./geo";
+import type { GeoLocation, QueryOptions, Driver } from "./types";
 
 export type GeoIPServerRequest = {
   request: globalThis.Request;
@@ -208,10 +203,7 @@ export function createGeoIPHandler(
  * Create GeoIP server with convenience wrapper
  */
 export function createGeoIPServer(opts: GeoIPServerOptions = {}): {
-  handler: EventHandlerWithFetch<
-    EventHandlerRequest,
-    Promise<GeoLocation | string>
-  >;
+  handler: EventHandlerWithFetch<EventHandlerRequest, Promise<GeoLocation | string>>;
   serve: (port?: number) => void;
 } {
   const handler = createGeoIPHandler(opts);

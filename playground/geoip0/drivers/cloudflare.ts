@@ -3,8 +3,8 @@
  * Demonstrating GeoIP lookup functionality with Cloudflare Radar APIs
  */
 
-import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import cloudflareDriver from "../../../packages/geoip0/src/drivers/cloudflare";
+import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import type { QueryOptions } from "../../../packages/geoip0/src/types";
 
 console.log("Cloudflare Driver Examples\n");

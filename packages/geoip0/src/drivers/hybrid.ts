@@ -9,15 +9,10 @@ export interface HybridDriverOptions extends DriverOptions {
   drivers: Driver<any>[];
 }
 
-export default function hybridDriver(
-  options: HybridDriverOptions,
-): Driver<HybridDriverOptions> {
+export default function hybridDriver(options: HybridDriverOptions): Driver<HybridDriverOptions> {
   const { drivers } = options;
 
-  const lookup = async (
-    ip: string,
-    queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  const lookup = async (ip: string, queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     for (const driver of drivers) {
       try {
         const result = await driver.lookup?.(ip, queryOptions);
@@ -32,9 +27,7 @@ export default function hybridDriver(
     return null;
   };
 
-  const current = async (
-    queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  const current = async (queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     for (const driver of drivers) {
       try {
         const result = await driver.current?.(queryOptions);

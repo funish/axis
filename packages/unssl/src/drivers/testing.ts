@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { UnsslError } from "unssl";
+
+import { UnsslError } from "../errors";
 import type {
   CertificateChallenge,
   CertificateRequest,
@@ -37,10 +38,7 @@ export default function testingDriver(
     }
   }
 
-  function createCertificate(
-    request: CertificateRequest,
-    renewalOf?: string,
-  ): IssuedCertificate {
+  function createCertificate(request: CertificateRequest, renewalOf?: string): IssuedCertificate {
     assertAvailable();
     if (!request.identifiers.length) {
       throw new UnsslError("At least one DNS identifier is required", {
@@ -62,17 +60,15 @@ export default function testingDriver(
       id,
       certificatePem: [
         "-----BEGIN CERTIFICATE-----",
-        Buffer.from(
-          JSON.stringify({ id, identifiers: request.identifiers, renewalOf }),
-        ).toString("base64"),
+        Buffer.from(JSON.stringify({ id, identifiers: request.identifiers, renewalOf })).toString(
+          "base64",
+        ),
         "-----END CERTIFICATE-----",
       ].join("\n"),
       privateKeyRef: `testing-key-${id}`,
       identifiers: request.identifiers,
       status: "issued",
-      expiresAt: new Date(
-        Date.now() + validityDays * 24 * 60 * 60 * 1000,
-      ).toISOString(),
+      expiresAt: new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000).toISOString(),
       metadata: { ...request.metadata, ...(renewalOf && { renewalOf }) },
     };
     certificates.set(id, issued);
@@ -109,13 +105,10 @@ export default function testingDriver(
     async revoke(request: RevokeRequest) {
       const certificateId = request.certificateId;
       if (!certificateId) {
-        throw new UnsslError(
-          "certificateId is required by the testing driver",
-          {
-            code: "invalid_request",
-            provider: "testing",
-          },
-        );
+        throw new UnsslError("certificateId is required by the testing driver", {
+          code: "invalid_request",
+          provider: "testing",
+        });
       }
       const certificate = certificates.get(certificateId);
       if (!certificate) {
@@ -143,13 +136,10 @@ export default function testingDriver(
       };
     },
 
-    async createChallenge(
-      request: ChallengeRequest,
-    ): Promise<CertificateChallenge> {
+    async createChallenge(request: ChallengeRequest): Promise<CertificateChallenge> {
       assertAvailable();
       sequence += 1;
-      const keyAuthorization =
-        request.keyAuthorization || `test-token-${sequence}.test-thumbprint`;
+      const keyAuthorization = request.keyAuthorization || `test-token-${sequence}.test-thumbprint`;
       const identifier = request.identifier.replace(/\.$/, "");
       const token = keyAuthorization.split(".")[0];
 
@@ -170,9 +160,7 @@ export default function testingDriver(
         token,
         keyAuthorization,
         recordName: `_acme-challenge.${identifier}`,
-        recordValue: createHash("sha256")
-          .update(keyAuthorization)
-          .digest("base64url"),
+        recordValue: createHash("sha256").update(keyAuthorization).digest("base64url"),
       };
     },
 

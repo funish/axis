@@ -5,6 +5,7 @@
 
 import { queryIP } from "rdap";
 import type { RdapIpNetwork } from "rdap";
+
 import type { Driver, DriverOptions, GeoLocation, QueryOptions } from "..";
 
 export interface RdapDriverOptions extends DriverOptions {
@@ -19,18 +20,13 @@ export interface RdapDriverOptions extends DriverOptions {
   fetchOptions?: RequestInit;
 }
 
-export default function rdapDriver(
-  options: RdapDriverOptions = {},
-): Driver<RdapDriverOptions> {
+export default function rdapDriver(options: RdapDriverOptions = {}): Driver<RdapDriverOptions> {
   const { baseUrl, fetchOptions } = options;
 
   /**
    * Extract geolocation information from RDAP IP network response
    */
-  const extractGeoLocation = (
-    rdapResponse: RdapIpNetwork,
-    ip?: string,
-  ): GeoLocation => {
+  const extractGeoLocation = (rdapResponse: RdapIpNetwork, ip?: string): GeoLocation => {
     const location: GeoLocation = {
       ip: ip ?? rdapResponse.startAddress,
       country: "",
@@ -62,19 +58,14 @@ export default function rdapDriver(
     }
 
     if (rdapResponse.type) {
-      location.org = location.org
-        ? `${location.org} (${rdapResponse.type})`
-        : rdapResponse.type;
+      location.org = location.org ? `${location.org} (${rdapResponse.type})` : rdapResponse.type;
     }
 
     // Extract information from entities
     if (rdapResponse.entities) {
       for (const entity of rdapResponse.entities) {
         // Look for registrant or administrative entity
-        if (
-          entity.roles?.includes("registrant") ||
-          entity.roles?.includes("administrative")
-        ) {
+        if (entity.roles?.includes("registrant") || entity.roles?.includes("administrative")) {
           // Extract organization and contact information from vcardArray if available
           if (entity.vcardArray && entity.vcardArray[1]) {
             const vcardProps = entity.vcardArray[1];
@@ -99,28 +90,20 @@ export default function rdapDriver(
 
               if (propType === "adr") {
                 // Address property - check for address in label parameter
-                if (
-                  params &&
-                  params.label &&
-                  typeof params.label === "string"
-                ) {
+                if (params && params.label && typeof params.label === "string") {
                   // Parse address from label parameter
                   const addressLines = params.label.split("\n");
                   if (addressLines.length >= 3) {
                     // Format typically: Street\nCity\nState\nPostal\nCountry
-                    const country =
-                      addressLines[addressLines.length - 1]?.trim();
-                    const stateOrCity =
-                      addressLines[addressLines.length - 2]?.trim();
+                    const country = addressLines[addressLines.length - 1]?.trim();
+                    const stateOrCity = addressLines[addressLines.length - 2]?.trim();
                     const city = addressLines[2]?.trim();
 
                     if (country) {
                       location.country = country;
                       // Extract country code (last word)
                       const countryWords = country.split(" ");
-                      location.countryCode = countryWords[
-                        countryWords.length - 1
-                      ]
+                      location.countryCode = countryWords[countryWords.length - 1]
                         .substring(0, 2)
                         .toUpperCase();
                     }
@@ -172,10 +155,7 @@ export default function rdapDriver(
     return location;
   };
 
-  const lookup = async (
-    ip: string,
-    _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation> => {
+  const lookup = async (ip: string, _queryOptions?: QueryOptions): Promise<GeoLocation> => {
     try {
       const rdapResponse = await queryIP<RdapIpNetwork>(ip, {
         baseUrl,
@@ -227,9 +207,7 @@ export default function rdapDriver(
     }
   };
 
-  const current = async (
-    _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation> => {
+  const current = async (_queryOptions?: QueryOptions): Promise<GeoLocation> => {
     // RDAP doesn't support current IP detection, return empty object
     return {
       ip: "",

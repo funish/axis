@@ -1,10 +1,8 @@
-/* eslint-disable no-floating-promises */
-import assert from "node:assert/strict";
-import { describe, test } from "node:test";
+import { describe, expect, test } from "vite-plus/test";
+
 import {
   AcmeClient,
   MemoryNonceStore,
-  UnsslError,
   createUnsslManager,
   dns01RecordName,
   dns01RecordValue,
@@ -14,11 +12,11 @@ import {
   type DnsRecordOperations,
   type HttpFetch,
   type JwsSigner,
-} from "unssl";
-import testingDriver from "unssl/drivers/testing";
-import letsEncryptDriver from "unssl/drivers/letsencrypt";
-import zeroSslDriver from "unssl/drivers/zerossl";
-import cloudflareSslDriver from "unssl/drivers/cloudflare";
+} from "../src";
+import cloudflareSslDriver from "../src/drivers/cloudflare";
+import letsEncryptDriver from "../src/drivers/letsencrypt";
+import testingDriver from "../src/drivers/testing";
+import zeroSslDriver from "../src/drivers/zerossl";
 
 const csr = [
   "-----BEGIN CERTIFICATE REQUEST-----",
@@ -26,22 +24,16 @@ const csr = [
   "-----END CERTIFICATE REQUEST-----",
 ].join("\n");
 
-function createDnsOperations(): DnsRecordOperations & {
-  records: Map<string, DnsRecord[]>;
-} {
+function createDnsOperations(): DnsRecordOperations & { records: Map<string, DnsRecord[]> } {
   const records = new Map<string, DnsRecord[]>();
   const localName = (name: string, domain: string) =>
-    name === domain || name === "@"
-      ? "@"
-      : name.replace(new RegExp(`\\.${domain}$`), "");
+    name === domain || name === "@" ? "@" : name.replace(new RegExp(`\\.${domain}$`), "");
 
   return {
     records,
     async getRecords(domain, options) {
       const stored = records.get(domain) || [];
-      const queryName = options?.name
-        ? localName(options.name, domain)
-        : undefined;
+      const queryName = options?.name ? localName(options.name, domain) : undefined;
       return stored.filter(
         (record) =>
           (!queryName || localName(record.name || "@", domain) === queryName) &&
@@ -73,46 +65,37 @@ describe("unssl manager", () => {
       identifiers: ["example.com", "www.example.com"],
       csrPem: csr,
     });
-    assert.equal(issued.id, "1");
-    assert.ok(issued.certificatePem.includes("BEGIN CERTIFICATE"));
+    expect(issued.id).toBe("1");
+    expect(issued.certificatePem).toContain("BEGIN CERTIFICATE");
 
     const renewed = await manager.renew(issued, {
       csrPem: csr,
       metadata: { reason: "rotation" },
     });
-    assert.equal(renewed.id, "2");
-    assert.equal(renewed.metadata?.renewalOf, issued.id);
+    expect(renewed.id).toBe("2");
+    expect(renewed.metadata?.renewalOf).toBe(issued.id);
 
     await manager.revoke({ certificateId: issued.id, reason: "superseded" });
-    const metadata = await manager.getDeploymentMetadata(renewed.id);
-    assert.equal(metadata.certificateId, "2");
-    assert.equal(metadata.provider, "testing");
+    expect(await manager.getDeploymentMetadata(renewed.id)).toMatchObject({
+      certificateId: "2",
+      provider: "testing",
+    });
 
     await manager.dispose();
     await manager.dispose();
 
-    await assert.rejects(
+    await expect(
       manager.issue({ identifiers: ["example.com"], csrPem: csr }),
-      (error: unknown) => {
-        assert.ok(error instanceof UnsslError);
-        assert.equal(error.code, "disposed");
-        return true;
-      },
-    );
+    ).rejects.toMatchObject({ code: "disposed" });
   });
 
   test("rejects operations missing from the optional-method contract", async () => {
     const manager = createUnsslManager({ driver: zeroSslDriver() });
 
-    await assert.rejects(
+    await expect(
       manager.issue({ identifiers: ["example.com"], csrPem: csr }),
-      (error: unknown) => {
-        assert.ok(error instanceof UnsslError);
-        assert.equal(error.code, "not_supported");
-        return true;
-      },
-    );
-    assert.deepEqual(cloudflareSslDriver().options, {});
+    ).rejects.toMatchObject({ code: "not_supported" });
+    expect(cloudflareSslDriver().options).toEqual({});
   });
 
   test("uses injected DNS operations without coupling UnSSL to a provider", async () => {
@@ -126,19 +109,15 @@ describe("unssl manager", () => {
       identifier: "www.example.com",
       keyAuthorization: "test-token.test-thumbprint",
     });
-    assert.equal(challenge.type, "dns-01");
-    if (challenge.type !== "dns-01")
-      throw new Error("Expected DNS-01 challenge");
-    assert.equal(challenge.recordName, "_acme-challenge.www.example.com");
-    assert.equal(
-      challenge.recordValue,
-      "304jAPwCcBqnD9Rm0ihBOAkZ5SvDCl1QEFlc5qfKeqQ",
-    );
+    expect(challenge.type).toBe("dns-01");
+    if (challenge.type !== "dns-01") throw new Error("Expected DNS-01 challenge");
+    expect(challenge.recordName).toBe("_acme-challenge.www.example.com");
+    expect(challenge.recordValue).toBe("304jAPwCcBqnD9Rm0ihBOAkZ5SvDCl1QEFlc5qfKeqQ");
 
     await manager.putDns01Challenge(challenge);
-    assert.equal(dns.records.get("www.example.com")?.length, 1);
+    expect(dns.records.get("www.example.com")).toHaveLength(1);
     await manager.removeDns01Challenge(challenge);
-    assert.equal(dns.records.get("www.example.com")?.length, 0);
+    expect(dns.records.get("www.example.com")).toHaveLength(0);
   });
 });
 
@@ -152,23 +131,13 @@ describe("ACME protocol fixtures", () => {
 
   test("derives RFC 8555 challenge values", () => {
     const keyAuthorization = "test-token.test-thumbprint";
-    assert.equal(
-      dns01RecordName("www.example.com"),
-      "_acme-challenge.www.example.com",
-    );
-    assert.equal(
-      dns01RecordValue(keyAuthorization),
-      "304jAPwCcBqnD9Rm0ihBOAkZ5SvDCl1QEFlc5qfKeqQ",
-    );
-    assert.equal(
-      http01Path(keyAuthorization),
-      "/.well-known/acme-challenge/test-token",
-    );
+    expect(dns01RecordName("www.example.com")).toBe("_acme-challenge.www.example.com");
+    expect(dns01RecordValue(keyAuthorization)).toBe("304jAPwCcBqnD9Rm0ihBOAkZ5SvDCl1QEFlc5qfKeqQ");
+    expect(http01Path(keyAuthorization)).toBe("/.well-known/acme-challenge/test-token");
   });
 
   test("sends RFC 8555 directory, nonce, and JWS request framing", async () => {
-    const requests: Array<{ url: string; method?: string; body?: unknown }> =
-      [];
+    const requests: Array<{ url: string; method?: string; body?: unknown }> = [];
     const fetch: HttpFetch = async (url, init) => {
       requests.push({ url, method: init?.method, body: init?.body });
       if (init?.method === "HEAD") {
@@ -206,28 +175,22 @@ describe("ACME protocol fixtures", () => {
     });
     const order = await client.newOrder({ identifiers: ["example.com"] });
 
-    assert.deepEqual(
-      requests.map((request) => request.method),
-      ["GET", "HEAD", "POST"],
-    );
-    assert.equal(requests[2].url, directory.newOrder);
+    expect(requests.map((request) => request.method)).toEqual(["GET", "HEAD", "POST"]);
+    expect(requests[2].url).toBe(directory.newOrder);
 
     const jws = JSON.parse(String(requests[2].body));
-    assert.equal(jws.signature, "fixture-signature");
-    assert.equal(
-      Buffer.from(jws.payload, "base64url").toString(),
+    expect(jws.signature).toBe("fixture-signature");
+    expect(Buffer.from(jws.payload, "base64url").toString()).toBe(
       '{"identifiers":[{"type":"dns","value":"example.com"}]}',
     );
-    const protectedHeader = JSON.parse(
-      Buffer.from(jws.protected, "base64url").toString(),
-    );
-    assert.deepEqual(protectedHeader, {
+    const protectedHeader = JSON.parse(Buffer.from(jws.protected, "base64url").toString());
+    expect(protectedHeader).toEqual({
       alg: "ES256",
       nonce: "nonce-1",
       url: directory.newOrder,
       kid: "https://ca.example/acme/account/1",
     });
-    assert.equal(order.finalize, "https://ca.example/acme/order/1/finalize");
+    expect(order.finalize).toBe("https://ca.example/acme/order/1/finalize");
   });
 
   test("maps HTTP failures to the unified error taxonomy", async () => {
@@ -240,11 +203,9 @@ describe("ACME protocol fixtures", () => {
       fetch,
     });
 
-    await assert.rejects(client.directory(), (error: unknown) => {
-      assert.ok(error instanceof UnsslError);
-      assert.equal(error.code, "rate_limited");
-      assert.equal(error.retryable, true);
-      return true;
+    await expect(client.directory()).rejects.toMatchObject({
+      code: "rate_limited",
+      retryable: true,
     });
   });
 
@@ -256,33 +217,26 @@ describe("ACME protocol fixtures", () => {
       identifier: "example.com",
       keyAuthorization: "test-token.test-thumbprint",
     });
-    assert.equal(challenge.type, "http-01");
-    if (challenge.type !== "http-01")
-      throw new Error("Expected HTTP-01 challenge");
-    assert.equal(challenge.path, "/.well-known/acme-challenge/test-token");
+    expect(challenge.type).toBe("http-01");
+    if (challenge.type !== "http-01") throw new Error("Expected HTTP-01 challenge");
+    expect(challenge.path).toBe("/.well-known/acme-challenge/test-token");
 
-    await assert.rejects(
+    await expect(
       manager.issue({ identifiers: ["example.com"], csrPem: csr }),
-      (error: unknown) => {
-        assert.ok(error instanceof UnsslError);
-        assert.equal(error.code, "not_supported");
-        return true;
-      },
-    );
+    ).rejects.toMatchObject({ code: "not_supported" });
     await manager.dispose();
   });
 });
 
-test(
+test.skipIf(!process.env.UNSSL_TEST_LIVE_ACME)(
   "loads the public Let's Encrypt directory when live ACME access is enabled",
-  { skip: !process.env.UNSSL_TEST_LIVE_ACME },
   async () => {
     const client = new AcmeClient({
       directoryUrl: "https://acme-staging-v02.api.letsencrypt.org/directory",
     });
     const directory = await client.directory();
-    assert.match(directory.newNonce, /^https:\/\//);
-    assert.match(directory.newAccount, /^https:\/\//);
-    assert.match(directory.newOrder, /^https:\/\//);
+    expect(directory.newNonce).toMatch(/^https:\/\//);
+    expect(directory.newAccount).toMatch(/^https:\/\//);
+    expect(directory.newOrder).toMatch(/^https:\/\//);
   },
 );

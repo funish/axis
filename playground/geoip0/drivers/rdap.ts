@@ -3,8 +3,8 @@
  * Demonstrating GeoIP lookup functionality with RDAP (Registration Data Access Protocol)
  */
 
-import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import rdapDriver from "../../../packages/geoip0/src/drivers/rdap";
+import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import type { QueryOptions } from "../../../packages/geoip0/src/types";
 
 console.log("RDAP Driver Examples\n");
@@ -28,9 +28,7 @@ try {
     console.log(`Country: ${result.country} (${result.countryCode})`);
     console.log(`Region: ${result.region || "N/A"}`);
     console.log(`City: ${result.city || "N/A"}`);
-    console.log(
-      `Coordinates: ${result.latitude || "N/A"}, ${result.longitude || "N/A"}`,
-    );
+    console.log(`Coordinates: ${result.latitude || "N/A"}, ${result.longitude || "N/A"}`);
     console.log(`ISP: ${result.isp || "N/A"}`);
     console.log(`Organization: ${result.org || "N/A"}`);
     console.log(`ASN: ${result.asn || "N/A"}`);
@@ -52,9 +50,7 @@ try {
     console.log(`Country: ${result.country} (${result.countryCode})`);
     console.log(`Region: ${result.region || "N/A"}`);
     console.log(`City: ${result.city || "N/A"}`);
-    console.log(
-      `Coordinates: ${result.latitude || "N/A"}, ${result.longitude || "N/A"}`,
-    );
+    console.log(`Coordinates: ${result.latitude || "N/A"}, ${result.longitude || "N/A"}`);
     console.log(`ISP: ${result.isp || "N/A"}`);
     console.log(`Organization: ${result.org || "N/A"}`);
     console.log(`ASN: ${result.asn || "N/A"}`);
@@ -146,9 +142,7 @@ try {
 
     results.forEach((result, index) => {
       console.log(`\n[${index + 1}] ${result.ip}`);
-      console.log(
-        `  Country: ${result.country || "N/A"} (${result.countryCode || "N/A"})`,
-      );
+      console.log(`  Country: ${result.country || "N/A"} (${result.countryCode || "N/A"})`);
       console.log(`  Region: ${result.region || "N/A"}`);
       console.log(`  City: ${result.city || "N/A"}`);
       console.log(`  ISP: ${result.isp || "N/A"}`);

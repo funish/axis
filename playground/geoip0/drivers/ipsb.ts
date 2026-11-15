@@ -3,8 +3,8 @@
  * Demonstrating GeoIP lookup functionality with IP.SB service
  */
 
-import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import ipsbDriver from "../../../packages/geoip0/src/drivers/ipsb";
+import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import type { QueryOptions } from "../../../packages/geoip0/src/types";
 
 console.log("IP.SB Driver Examples\n");

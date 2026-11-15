@@ -2,55 +2,56 @@
   "name": "rdap",
   "version": "0.0.14",
   "description": "Modern RDAP client and server with RFC compliance, bootstrap service, and h3 integration",
-  "main": "dist/index.mjs",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
-    },
-    "./server": {
-      "import": "./dist/server.mjs",
-      "require": "./dist/server.cjs",
-      "types": "./dist/server.d.ts"
-    }
-  },
-  "scripts": {
-    "dev": "unbuild --stub",
-    "build": "unbuild",
-    "prepack": "pnpm build"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/funish/axis.git"
-  },
   "keywords": [
-    "rdap",
-    "whois",
-    "domain",
-    "ip",
     "asn",
-    "registry",
-    "icann",
-    "rfc",
     "bootstrap",
+    "client",
+    "domain",
     "h3",
+    "icann",
+    "ip",
+    "rdap",
+    "registry",
+    "rfc",
     "server",
-    "client"
+    "whois"
   ],
+  "homepage": "https://github.com/funish/axis#readme",
+  "bugs": {
+    "url": "https://github.com/funish/axis/issues"
+  },
+  "license": "MIT",
   "author": {
     "name": "Funish",
     "email": "contact@funish.net",
     "url": "http://www.funish.net/"
   },
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/funish/axis/issues"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/funish/axis.git"
   },
-  "homepage": "https://github.com/funish/axis#readme",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./server": {
+      "types": "./dist/server.d.mts",
+      "import": "./dist/server.mjs"
+    }
+  },
+  "scripts": {
+    "dev": "basis build --stub",
+    "build": "vp pack",
+    "prepack": "pnpm build",
+    "release": "basis publish"
+  },
   "dependencies": {
     "h3": "2.0.1-rc.5",
     "ipdo": "workspace:*",

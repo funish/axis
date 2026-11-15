@@ -3,8 +3,8 @@
  * Demonstrating GeoIP lookup functionality with IP-API.com service
  */
 
-import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import ipApiComDriver from "../../../packages/geoip0/src/drivers/ipApiCom";
+import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import type { QueryOptions } from "../../../packages/geoip0/src/types";
 
 console.log("IP-API.com Driver Examples\n");

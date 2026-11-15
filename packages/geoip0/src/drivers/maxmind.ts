@@ -4,9 +4,10 @@
  */
 
 import { ofetch } from "ofetch";
-import { createMMDBParser } from "../mmdb";
-import type { Driver, GeoLocation, QueryOptions } from "..";
 import type { DataType } from "undio";
+
+import type { Driver, GeoLocation, QueryOptions } from "..";
+import { createMMDBParser } from "../mmdb";
 
 // Driver mode type
 export type MaxMindMode = "mmdb" | "web";
@@ -153,9 +154,7 @@ export interface MaxMindWebOptions {
 // Union type for all MaxMind options
 export type MaxMindOptions = MaxMindMMDBOptions | MaxMindWebOptions;
 
-export default function maxmindDriver(
-  options: MaxMindOptions,
-): Driver<MaxMindOptions> {
+export default function maxmindDriver(options: MaxMindOptions): Driver<MaxMindOptions> {
   let parser: ReturnType<typeof createMMDBParser> | null = null;
 
   // Initialize based on mode
@@ -175,10 +174,7 @@ export default function maxmindDriver(
   };
 
   // Convert MMDB data to GeoLocation format
-  const convertMMDBToGeoLocation = (
-    ip: string,
-    data: MaxMindData | null,
-  ): GeoLocation | null => {
+  const convertMMDBToGeoLocation = (ip: string, data: MaxMindData | null): GeoLocation | null => {
     if (!data) return null;
 
     const getCountryName = (country?: MaxMindCountryRecord): string => {
@@ -224,10 +220,7 @@ export default function maxmindDriver(
   };
 
   // Convert Web Service data to GeoLocation format
-  const convertWebToGeoLocation = (
-    ip: string,
-    data: MaxMindWebData | null,
-  ): GeoLocation | null => {
+  const convertWebToGeoLocation = (ip: string, data: MaxMindWebData | null): GeoLocation | null => {
     if (!data) return null;
 
     const getCountryName = (country?: MaxMindWebCountry): string => {
@@ -272,10 +265,7 @@ export default function maxmindDriver(
     };
   };
 
-  const lookup = async (
-    ip: string,
-    _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  const lookup = async (ip: string, _queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
       if (options.mode === "mmdb") {
         if (!parser && !(await init())) {
@@ -294,22 +284,14 @@ export default function maxmindDriver(
         } = webOptions;
 
         if (!accountId || !licenseKey) {
-          throw new Error(
-            "Account ID and license key are required for web service mode",
-          );
+          throw new Error("Account ID and license key are required for web service mode");
         }
 
         const serviceEndpoint =
-          service === "insights"
-            ? "insights"
-            : service === "country"
-              ? "country"
-              : "city";
+          service === "insights" ? "insights" : service === "country" ? "country" : "city";
         const url = `${baseUrl}/geoip/v2.1/${serviceEndpoint}/${ip}`;
 
-        const auth = Buffer.from(`${accountId}:${licenseKey}`).toString(
-          "base64",
-        );
+        const auth = Buffer.from(`${accountId}:${licenseKey}`).toString("base64");
 
         const data: MaxMindWebData = await ofetch(url, {
           headers: {
@@ -338,9 +320,7 @@ export default function maxmindDriver(
     }
   };
 
-  const current = async (
-    _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  const current = async (_queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
       if (options.mode === "mmdb") {
         // MMDB doesn't support current IP lookup
@@ -356,22 +336,14 @@ export default function maxmindDriver(
         } = webOptions;
 
         if (!accountId || !licenseKey) {
-          throw new Error(
-            "Account ID and license key are required for web service mode",
-          );
+          throw new Error("Account ID and license key are required for web service mode");
         }
 
         const serviceEndpoint =
-          service === "insights"
-            ? "insights"
-            : service === "country"
-              ? "country"
-              : "city";
+          service === "insights" ? "insights" : service === "country" ? "country" : "city";
         const url = `${baseUrl}/geoip/v2.1/${serviceEndpoint}/me`;
 
-        const auth = Buffer.from(`${accountId}:${licenseKey}`).toString(
-          "base64",
-        );
+        const auth = Buffer.from(`${accountId}:${licenseKey}`).toString("base64");
 
         const data: MaxMindWebData = await ofetch(url, {
           headers: {

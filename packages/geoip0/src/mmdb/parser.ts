@@ -3,13 +3,14 @@
  * Cross-platform MaxMind database parser for browser and Node.js
  */
 
-import type { MMDBOptions, MMDBMetadata, ParseResult, MMDBData } from "./types";
-import { toUint8Array, DataType } from "undio";
-import { LRUCache } from "./utils";
-import { MMDBMetadataParser } from "./metadata";
-import { MMDBWalker } from "./walker";
-import { MMDBDecoder } from "./decoder";
 import { ipToBytes, isValidIP } from "ipdo";
+import { toUint8Array, DataType } from "undio";
+
+import { MMDBDecoder } from "./decoder";
+import { MMDBMetadataParser } from "./metadata";
+import type { MMDBOptions, MMDBMetadata, ParseResult, MMDBData } from "./types";
+import { LRUCache } from "./utils";
+import { MMDBWalker } from "./walker";
 
 /**
  * Universal MMDB parser that works in both browser and Node.js environments
@@ -33,11 +34,7 @@ export class MMDBParser {
       ...options,
     };
 
-    if (
-      this.options.enableCache &&
-      this.options.cacheSize &&
-      this.options.cacheSize > 0
-    ) {
+    if (this.options.enableCache && this.options.cacheSize && this.options.cacheSize > 0) {
       this.cache = new LRUCache(this.options.cacheSize);
     }
   }
@@ -57,8 +54,7 @@ export class MMDBParser {
 
     // Initialize components
     const DATA_SECTION_SEPARATOR_SIZE = 16;
-    const dataSectionOffset =
-      this.metadata.searchTreeSize + DATA_SECTION_SEPARATOR_SIZE;
+    const dataSectionOffset = this.metadata.searchTreeSize + DATA_SECTION_SEPARATOR_SIZE;
     this.walker = new MMDBWalker(this.data, this.metadata);
     this.decoder = new MMDBDecoder(this.data, dataSectionOffset);
   }
@@ -119,16 +115,12 @@ export class MMDBParser {
       // Walk the tree
       const [record, prefixLength] = this.walker!.walk(ipBytes);
 
-      if (
-        !record ||
-        !MMDBWalker.isDataPointer(record, this.metadata!.nodeCount)
-      ) {
+      if (!record || !MMDBWalker.isDataPointer(record, this.metadata!.nodeCount)) {
         return { data: null, prefixLength };
       }
 
       // Resolve data pointer to actual data offset (same as original mmdb-lib)
-      const dataOffset =
-        record - this.metadata!.nodeCount + this.metadata!.searchTreeSize;
+      const dataOffset = record - this.metadata!.nodeCount + this.metadata!.searchTreeSize;
       // Note: pointerBase is an internal property of decoder
 
       // Use absolute offset directly (same as original mmdb-lib)

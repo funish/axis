@@ -1,4 +1,5 @@
 import { ofetch } from "ofetch";
+
 import type { Driver, GeoLocation, QueryOptions, DriverOptions } from "..";
 
 // IP.SB API response interface
@@ -22,13 +23,8 @@ export interface IPSBResponse {
 // IP.SB Driver options
 export interface IPSBOptions extends DriverOptions {}
 
-export default function ipsbDriver(
-  options: IPSBOptions = {},
-): Driver<IPSBOptions> {
-  const lookup = async (
-    ip: string,
-    _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+export default function ipsbDriver(options: IPSBOptions = {}): Driver<IPSBOptions> {
+  const lookup = async (ip: string, _queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
       const data: IPSBResponse = await ofetch(`https://api.ip.sb/geoip/${ip}`);
 
@@ -54,9 +50,7 @@ export default function ipsbDriver(
     }
   };
 
-  const current = async (
-    queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  const current = async (queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
       const version = queryOptions?.version || "auto";
       let url = "https://api.ip.sb/geoip";

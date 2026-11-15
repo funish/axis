@@ -3,8 +3,8 @@
  * Demonstrating GeoIP lookup functionality with Free IP API service
  */
 
-import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import freeipapiDriver from "../../../packages/geoip0/src/drivers/freeipapi";
+import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import type { QueryOptions } from "../../../packages/geoip0/src/types";
 
 console.log("Free IP API Driver Examples\n");
@@ -164,12 +164,8 @@ try {
   const batchResults = await geoip.batchLookup(testIPs);
   const batchTime = Date.now() - batchStart;
 
-  console.log(
-    `Sequential lookup: ${sequentialTime}ms for ${sequentialResults.length} results`,
-  );
-  console.log(
-    `Batch lookup: ${batchTime}ms for ${batchResults?.length || 0} results`,
-  );
+  console.log(`Sequential lookup: ${sequentialTime}ms for ${sequentialResults.length} results`);
+  console.log(`Batch lookup: ${batchTime}ms for ${batchResults?.length || 0} results`);
   if (batchResults && sequentialTime > 0) {
     console.log(
       `Performance improvement: ${(((sequentialTime - batchTime) / sequentialTime) * 100).toFixed(1)}% faster`,

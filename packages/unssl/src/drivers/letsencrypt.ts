@@ -1,11 +1,7 @@
 import { createHash } from "node:crypto";
-import { UnsslError } from "unssl";
-import type {
-  CertificateChallenge,
-  ChallengeRequest,
-  DriverOptions,
-  UnsslDriver,
-} from "../types";
+
+import { UnsslError } from "../errors";
+import type { CertificateChallenge, ChallengeRequest, DriverOptions, UnsslDriver } from "../types";
 
 export interface LetsEncryptDriverOptions extends DriverOptions {
   staging?: boolean;
@@ -24,9 +20,7 @@ export default function letsEncryptDriver(
     name: "letsencrypt",
     options,
 
-    async createChallenge(
-      request: ChallengeRequest,
-    ): Promise<CertificateChallenge> {
+    async createChallenge(request: ChallengeRequest): Promise<CertificateChallenge> {
       if (disposed) {
         throw new UnsslError("Let's Encrypt driver has been disposed", {
           code: "disposed",
@@ -57,9 +51,7 @@ export default function letsEncryptDriver(
         token,
         keyAuthorization: request.keyAuthorization,
         recordName: `_acme-challenge.${identifier}`,
-        recordValue: createHash("sha256")
-          .update(request.keyAuthorization)
-          .digest("base64url"),
+        recordValue: createHash("sha256").update(request.keyAuthorization).digest("base64url"),
       };
     },
 

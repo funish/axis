@@ -3,11 +3,11 @@
  * Demonstrating automatic fallback functionality with multiple drivers
  */
 
-import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
+import cloudflareDriver from "../../../packages/geoip0/src/drivers/cloudflare";
+import freeipapiDriver from "../../../packages/geoip0/src/drivers/freeipapi";
 import hybridDriver from "../../../packages/geoip0/src/drivers/hybrid";
 import ipsbDriver from "../../../packages/geoip0/src/drivers/ipsb";
-import freeipapiDriver from "../../../packages/geoip0/src/drivers/freeipapi";
-import cloudflareDriver from "../../../packages/geoip0/src/drivers/cloudflare";
+import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 
 console.log("Hybrid Driver Examples\n");
 

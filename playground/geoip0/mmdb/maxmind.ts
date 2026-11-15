@@ -5,6 +5,7 @@
 
 import { readFile } from "fs/promises";
 import { join } from "path";
+
 import { createMMDBParser } from "../../../packages/geoip0/src/mmdb";
 
 // Define specific types for this test file

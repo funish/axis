@@ -61,18 +61,9 @@ console.log("\nconvertToAscii('测试.com'):", convertToAscii("测试.com"));
 
 // Bootstrap type conversion example
 console.log("\n=== Bootstrap Type Conversion ===");
-console.log(
-  "bootstrapTypeToQueryType('dns'):",
-  bootstrapTypeToQueryType("dns"),
-);
-console.log(
-  "bootstrapTypeToQueryType('ipv4'):",
-  bootstrapTypeToQueryType("ipv4"),
-);
-console.log(
-  "bootstrapTypeToQueryType('asn'):",
-  bootstrapTypeToQueryType("asn"),
-);
+console.log("bootstrapTypeToQueryType('dns'):", bootstrapTypeToQueryType("dns"));
+console.log("bootstrapTypeToQueryType('ipv4'):", bootstrapTypeToQueryType("ipv4"));
+console.log("bootstrapTypeToQueryType('asn'):", bootstrapTypeToQueryType("asn"));
 
 // Query function examples
 console.log("\n=== Query Function Examples ===");

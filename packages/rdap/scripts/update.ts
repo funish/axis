@@ -20,13 +20,7 @@ const BOOTSTRAP_DIR = join(__dirname, "src", "bootstrap");
 async function updateBootstrapData() {
   console.log("🔄 Updating RDAP bootstrap data from IANA...");
 
-  const bootstrapTypes: RdapBootstrapType[] = [
-    "asn",
-    "dns",
-    "ipv4",
-    "ipv6",
-    "object-tags",
-  ];
+  const bootstrapTypes: RdapBootstrapType[] = ["asn", "dns", "ipv4", "ipv6", "object-tags"];
 
   for (const type of bootstrapTypes) {
     try {

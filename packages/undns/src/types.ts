@@ -80,28 +80,16 @@ export interface Driver<OptionsT = DriverOptions> {
   options?: OptionsT;
 
   // Read operations
-  getRecord?: (
-    domain: string,
-    options?: RecordOptions,
-  ) => MaybePromise<DNSRecord | null>;
-  getRecords?: (
-    domain: string,
-    options?: RecordOptions,
-  ) => MaybePromise<DNSRecord[]>;
+  getRecord?: (domain: string, options?: RecordOptions) => MaybePromise<DNSRecord | null>;
+  getRecords?: (domain: string, options?: RecordOptions) => MaybePromise<DNSRecord[]>;
   hasRecord?: (
     domain: string,
     options: RecordOptions & { type: string }, // type is required for hasRecord
   ) => MaybePromise<boolean>;
 
   // Write operations
-  setRecord?: (
-    domain: string,
-    record: DNSRecordInput,
-  ) => MaybePromise<DNSRecord>;
-  setRecords?: (
-    domain: string,
-    records: DNSRecordInput[],
-  ) => MaybePromise<DNSRecord[]>;
+  setRecord?: (domain: string, record: DNSRecordInput) => MaybePromise<DNSRecord>;
+  setRecords?: (domain: string, records: DNSRecordInput[]) => MaybePromise<DNSRecord[]>;
   removeRecord?: (domain: string, record: DNSRecord) => MaybePromise<void>;
   removeRecords?: (domain: string, records: DNSRecord[]) => MaybePromise<void>;
 

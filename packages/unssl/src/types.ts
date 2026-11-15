@@ -81,14 +81,8 @@ export interface DnsRecordOperations {
     domain: string,
     options?: { name?: string; type?: string },
   ): DnsRecord[] | Promise<DnsRecord[]>;
-  setRecord(
-    domain: string,
-    record: DnsRecordInput,
-  ): DnsRecord | Promise<DnsRecord>;
-  upsertRecord?(
-    domain: string,
-    record: DnsRecordInput,
-  ): DnsRecord | Promise<DnsRecord>;
+  setRecord(domain: string, record: DnsRecordInput): DnsRecord | Promise<DnsRecord>;
+  upsertRecord?(domain: string, record: DnsRecordInput): DnsRecord | Promise<DnsRecord>;
   removeRecord(domain: string, record: DnsRecord): void | Promise<void>;
 }
 
@@ -104,10 +98,7 @@ export interface KeyStorage {
   delete(reference: string): void | Promise<void>;
 }
 
-export type HttpFetch = (
-  input: string,
-  init?: RequestInit,
-) => Promise<Response>;
+export type HttpFetch = (input: string, init?: RequestInit) => Promise<Response>;
 
 export interface AcmeDirectory {
   newNonce: string;
@@ -186,12 +177,8 @@ export interface UnsslDriver<OptionsT = DriverOptions> {
     request?: Partial<CertificateRequest>,
   ) => MaybePromise<IssuedCertificate>;
   revoke?: (request: RevokeRequest) => MaybePromise<void>;
-  getDeploymentMetadata?: (
-    certificateId: string,
-  ) => MaybePromise<DeploymentMetadata>;
-  createChallenge?: (
-    request: ChallengeRequest,
-  ) => MaybePromise<CertificateChallenge>;
+  getDeploymentMetadata?: (certificateId: string) => MaybePromise<DeploymentMetadata>;
+  createChallenge?: (request: ChallengeRequest) => MaybePromise<CertificateChallenge>;
   dispose?: () => MaybePromise<void>;
 }
 

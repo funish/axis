@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+
 import { classifyHttpError, UnsslError } from "./errors";
 import type {
   AcmeDirectory,
@@ -127,10 +128,7 @@ export class AcmeClient {
       });
     }
 
-    if (
-      !response.ok ||
-      (expectedStatus && response.status !== expectedStatus)
-    ) {
+    if (!response.ok || (expectedStatus && response.status !== expectedStatus)) {
       let details: unknown;
       try {
         details = await response.json();
@@ -285,10 +283,7 @@ export class AcmeClient {
     return response.text();
   }
 
-  async revoke(
-    certificatePem: string,
-    reason: RevokeReason = "unspecified",
-  ): Promise<void> {
+  async revoke(certificatePem: string, reason: RevokeReason = "unspecified"): Promise<void> {
     const directory = await this.directory();
     if (!directory.revokeCert) {
       throw new UnsslError("ACME directory does not expose revocation", {

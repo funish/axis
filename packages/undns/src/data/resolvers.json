@@ -6529,10 +6529,7 @@
     "stamp": "sdns://AQcAAAAAAAAAFVsyNjA2OmZjNDA6NDAwMzpmOjphXSBfgO2Adqvwp-0GfeOlxxbg7wFDZUVy3CHC7-sx-YJaxhkyLmRuc2NyeXB0LWNlcnQuZG5zY3J5LnB0"
   },
   {
-    "addrs": [
-      "helios.plan9-dns.com",
-      "[2001:19f0:b400:1d8c:5400:4ff:fe11:b15a]"
-    ],
+    "addrs": ["helios.plan9-dns.com", "[2001:19f0:b400:1d8c:5400:4ff:fe11:b15a]"],
     "country": "United States",
     "description": "Mexico City, MX. DoH, DoH3 via the Alt-Svc header, no-logs, no-filters, DNSSEC\nHosted on Vultr, jlongua.github.io/plan9-dns, DoT & DoQ supported.",
     "dnssec": true,
@@ -8987,10 +8984,7 @@
     "stamp": "sdns://AgYAAAAAAAAADDg5LjIzMy40My43MaD39a8ogB6HfX3zor4o_hSfMnSn7SnxNv1QPOOYy6gLDaD1dX14bxc_arUxl-ycIpCKwG0q5Oqipbb1jrvwA5eh36CzXgWVDPvYJZ-TdboQGHC4w8TA7FpSl1fmMWfp3iap6KDs8GIL_DDURN71d63GXDdQWnO6LS_Z5v9Bw-060NZaD6Ci4ydDY3bY52QFq-n-yIy0HeLU0DUNToKSpTEYxLjfW6CQeNIaVsDgiR2QYiG2mSMxvdFxcusPM92gfVxlxuFMOaDWrXBNNBdOEgjJUqqrmDXrHAZrDc2jtNrUD0UT6OGCWqCyXy82ln9zlPCZN4hbMz-qNW1xn-rPOMzp8DVQAPPhdKDmRLppY-M1_nZcuZdrErEOtUKUtCR3dkzLOjrMo6yy_KAqrj-3vwXkyBxBlNykRRHU-a8wR4bsGuchhAnPYqCDVaDWHZbr-z-hkJbiwALjYDv3_arvsicE2oZoBiu-hu1LkyCdSDK7TI13IHsl3hdZJoLvw8pF9XncZkoO1fJI9ckzmBl1bmljYXN0LnVuY2Vuc29yZWRkbnMub3JnCi9kbnMtcXVlcnk"
   },
   {
-    "addrs": [
-      "pluton.plan9-dns.com",
-      "[2001:19f0:9002:de4:5400:4ff:fe08:7de3]"
-    ],
+    "addrs": ["pluton.plan9-dns.com", "[2001:19f0:9002:de4:5400:4ff:fe08:7de3]"],
     "country": "United States",
     "description": "Miami Florida, USA. DoH, DoH3 via the Alt-Svc header, no-logs, no-filters, DNSSEC\nHosted on Vultr, jlongua.github.io/plan9-dns, DoT & DoQ supported.",
     "dnssec": true,

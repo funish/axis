@@ -40,8 +40,8 @@ $ pnpm add geoip0
 
 ```typescript
 import { createGeoIPManager } from "geoip0";
-import ipsbDriver from "geoip0/drivers/ipsb";
 import hybridDriver from "geoip0/drivers/hybrid";
+import ipsbDriver from "geoip0/drivers/ipsb";
 
 // Create GeoIP manager with single driver
 const geoip = createGeoIPManager({
@@ -76,11 +76,7 @@ const location = await geoip.lookup("1.1.1.1");
 const currentLocation = await geoip.current();
 
 // Batch lookup for multiple IPs
-const locations = await geoip.batchLookup([
-  "1.1.1.1",
-  "8.8.8.8",
-  "2606:4700:4700::1111",
-]);
+const locations = await geoip.batchLookup(["1.1.1.1", "8.8.8.8", "2606:4700:4700::1111"]);
 
 // Lookup with version preference
 const ipv4Location = await geoip.lookup("8.8.8.8", { version: "ipv4" });
@@ -101,42 +97,31 @@ const autoDetect = await geoip.current({ version: "auto" });
 ### Available Drivers
 
 ```typescript
-// IP.SB driver (comprehensive geolocation data)
-import ipsbDriver from "geoip0/drivers/ipsb";
-
 // Cloudflare Radar driver (ASN and network info)
 import cloudflareDriver from "geoip0/drivers/cloudflare";
-
 // FreeIPAPI driver (free geolocation API with bulk support)
 import freeipapiDriver from "geoip0/drivers/freeipapi";
-
-// IP-API.com driver (high-performance API with 100 IP batch limit)
-import ipApiComDriver from "geoip0/drivers/ipApiCom";
-
-// ipapi.co driver (rich geolocation data with field customization)
-import ipapiCoDriver from "geoip0/drivers/ipapiCo";
-
-// ip2location.io driver (comprehensive geolocation with API key)
-import ip2LocationDriver from "geoip0/drivers/ip2Location";
-
-// MaxMind driver (MMDB database and Web Service with fallback support)
-import maxmindDriver, {
-  MaxMindMMDBOptions,
-  MaxMindWebOptions,
-} from "geoip0/drivers/maxmind";
-
-// RDAP driver (official registry data from Regional Internet Registries)
-import rdapDriver, { RdapDriverOptions } from "geoip0/drivers/rdap";
-
 // Hybrid driver (automatic fallback between multiple drivers)
 import hybridDriver from "geoip0/drivers/hybrid";
+// ip2location.io driver (comprehensive geolocation with API key)
+import ip2LocationDriver from "geoip0/drivers/ip2Location";
+// ipapi.co driver (rich geolocation data with field customization)
+import ipapiCoDriver from "geoip0/drivers/ipapiCo";
+// IP-API.com driver (high-performance API with 100 IP batch limit)
+import ipApiComDriver from "geoip0/drivers/ipApiCom";
+// IP.SB driver (comprehensive geolocation data)
+import ipsbDriver from "geoip0/drivers/ipsb";
+// MaxMind driver (MMDB database and Web Service with fallback support)
+import maxmindDriver, { MaxMindMMDBOptions, MaxMindWebOptions } from "geoip0/drivers/maxmind";
+// RDAP driver (official registry data from Regional Internet Registries)
+import rdapDriver, { RdapDriverOptions } from "geoip0/drivers/rdap";
 ```
 
 ### HTTP Server
 
 ```typescript
-import { createGeoIPServer, createGeoIPHandler } from "geoip0/server";
 import ipsbDriver from "geoip0/drivers/ipsb";
+import { createGeoIPServer, createGeoIPHandler } from "geoip0/server";
 
 // Create and start GeoIP server
 const server = createGeoIPServer({ driver: ipsbDriver() });
@@ -155,8 +140,9 @@ app.use("/**", geoipHandler);
 For direct MMDB database operations, use the dedicated MMDB module:
 
 ```typescript
-import { createMMDBParser } from "geoip0/mmdb";
 import { readFile } from "fs/promises";
+
+import { createMMDBParser } from "geoip0/mmdb";
 
 // Load MMDB database
 const mmdbData = await readFile("./GeoLite2-City.mmdb");

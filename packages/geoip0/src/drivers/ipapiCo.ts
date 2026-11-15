@@ -1,4 +1,5 @@
 import { ofetch } from "ofetch";
+
 import type { Driver, GeoLocation, QueryOptions, DriverOptions } from "..";
 
 // ipapi.co response interface
@@ -38,13 +39,8 @@ export interface IpapiCoOptions extends DriverOptions {
   fields?: string;
 }
 
-export default function ipapiCoDriver(
-  options: IpapiCoOptions = {},
-): Driver<IpapiCoOptions> {
-  const lookup = async (
-    ip: string,
-    _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+export default function ipapiCoDriver(options: IpapiCoOptions = {}): Driver<IpapiCoOptions> {
+  const lookup = async (ip: string, _queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
       let url = `https://ipapi.co/${encodeURIComponent(ip)}/json/`;
 
@@ -80,9 +76,7 @@ export default function ipapiCoDriver(
     }
   };
 
-  const current = async (
-    _queryOptions?: QueryOptions,
-  ): Promise<GeoLocation | null> => {
+  const current = async (_queryOptions?: QueryOptions): Promise<GeoLocation | null> => {
     try {
       let url = "https://ipapi.co/json/";
 

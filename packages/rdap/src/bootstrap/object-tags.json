@@ -11,11 +11,7 @@
     [["bje@apnic.net"], ["APNIC"], ["https://rdap.apnic.net/"]],
     [["kranjbar@ripe.net"], ["RIPE"], ["https://rdap.db.ripe.net/"]],
     [["tld-tech@nic.fr"], ["FRNIC"], ["https://rdap.nic.fr/"]],
-    [
-      ["hello@glauca.digital"],
-      ["GLAUCA"],
-      ["https://whois-web.as207960.net/rdap/"]
-    ],
+    [["hello@glauca.digital"], ["GLAUCA"], ["https://whois-web.as207960.net/rdap/"]],
     [["info@norid.no"], ["NORID"], ["https://rdap.norid.no/"]]
   ],
   "version": "1.0"

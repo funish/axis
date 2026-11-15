@@ -7,6 +7,7 @@ import type {
   SrvRecord,
   MxRecord,
 } from "node:dns";
+
 import type {
   Driver,
   DNSRecord,
@@ -35,36 +36,18 @@ export default function nodeDriver(options: NodeDriverOptions = {}): Driver {
   };
 
   // Get records method using the complete resolve function
-  const getRecords = async (
-    domain: string,
-    options?: RecordOptions,
-  ): Promise<DNSRecord[]> => {
+  const getRecords = async (domain: string, options?: RecordOptions): Promise<DNSRecord[]> => {
     const hostname = buildHostname(domain, options?.name);
     const records: DNSRecord[] = [];
 
     try {
       const recordTypes = options?.type
         ? [options.type]
-        : [
-            "A",
-            "AAAA",
-            "CNAME",
-            "MX",
-            "TXT",
-            "NS",
-            "SOA",
-            "SRV",
-            "CAA",
-            "NAPTR",
-            "TLSA",
-          ];
+        : ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SOA", "SRV", "CAA", "NAPTR", "TLSA"];
 
       for (const type of recordTypes) {
         try {
-          const results = (await resolver.resolve(
-            hostname,
-            type,
-          )) as RawDNSResult;
+          const results = (await resolver.resolve(hostname, type)) as RawDNSResult;
 
           // Convert Node.js results to our unified format
           if (type === "SOA") {
@@ -216,28 +199,16 @@ export default function nodeDriver(options: NodeDriverOptions = {}): Driver {
     },
 
     // Write operations - not supported
-    setRecord: async (
-      _domain: string,
-      _record: DNSRecordInput,
-    ): Promise<DNSRecord> => {
+    setRecord: async (_domain: string, _record: DNSRecordInput): Promise<DNSRecord> => {
       throw new Error("Node.js DNS driver is read-only: cannot set records");
     },
-    setRecords: async (
-      _domain: string,
-      _records: DNSRecordInput[],
-    ): Promise<DNSRecord[]> => {
+    setRecords: async (_domain: string, _records: DNSRecordInput[]): Promise<DNSRecord[]> => {
       throw new Error("Node.js DNS driver is read-only: cannot set records");
     },
-    removeRecord: async (
-      _domain: string,
-      _record: DNSRecord,
-    ): Promise<void> => {
+    removeRecord: async (_domain: string, _record: DNSRecord): Promise<void> => {
       throw new Error("Node.js DNS driver is read-only: cannot remove records");
     },
-    removeRecords: async (
-      _domain: string,
-      _records: DNSRecord[],
-    ): Promise<void> => {
+    removeRecords: async (_domain: string, _records: DNSRecord[]): Promise<void> => {
       throw new Error("Node.js DNS driver is read-only: cannot remove records");
     },
   };

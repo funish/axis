@@ -1,4 +1,5 @@
 import { createDNSManager, formatRecord, groupRecordsByType } from "undns";
+
 import dohDriver from "../../../packages/undns/src/drivers/doh";
 
 // Create DNS manager with DOH driver
@@ -35,18 +36,10 @@ async function testDOHDriver() {
 
     // Test hasRecord method
     console.log(`\nRecord existence checks for ${testDomain}:`);
-    console.log(
-      `  Has A records? ${await dns.hasRecord(testDomain, { type: "A" })}`,
-    );
-    console.log(
-      `  Has AAAA records? ${await dns.hasRecord(testDomain, { type: "AAAA" })}`,
-    );
-    console.log(
-      `  Has MX records? ${await dns.hasRecord(testDomain, { type: "MX" })}`,
-    );
-    console.log(
-      `  Has TXT records? ${await dns.hasRecord(testDomain, { type: "TXT" })}`,
-    );
+    console.log(`  Has A records? ${await dns.hasRecord(testDomain, { type: "A" })}`);
+    console.log(`  Has AAAA records? ${await dns.hasRecord(testDomain, { type: "AAAA" })}`);
+    console.log(`  Has MX records? ${await dns.hasRecord(testDomain, { type: "MX" })}`);
+    console.log(`  Has TXT records? ${await dns.hasRecord(testDomain, { type: "TXT" })}`);
 
     // Test specific record types
     console.log(`\nSpecific record types for ${testDomain}:`);
@@ -119,9 +112,7 @@ async function testDOHDriver() {
     });
 
     const googleRecords = await googleDns.getRecords(testDomain, { type: "A" });
-    console.log(
-      `  Google DNS - A records for ${testDomain} (${googleRecords.length}):`,
-    );
+    console.log(`  Google DNS - A records for ${testDomain} (${googleRecords.length}):`);
     googleRecords.forEach((record) => {
       console.log(`    ${formatRecord(record)}`);
     });
@@ -146,12 +137,8 @@ async function testDOHDriver() {
     }
     const googleTime = Date.now() - googleStart;
 
-    console.log(
-      `  Cloudflare DOH: ${cloudflareTime}ms (avg: ${cloudflareTime / iterations}ms)`,
-    );
-    console.log(
-      `  Google DNS DOH: ${googleTime}ms (avg: ${googleTime / iterations}ms)`,
-    );
+    console.log(`  Cloudflare DOH: ${cloudflareTime}ms (avg: ${cloudflareTime / iterations}ms)`);
+    console.log(`  Google DNS DOH: ${googleTime}ms (avg: ${googleTime / iterations}ms)`);
   } catch (error) {
     console.error("Error:", error);
     if (error instanceof Error) {

@@ -4,18 +4,12 @@
  * @see https://www.rfc-editor.org/rfc/rfc8484
  */
 
-import {
-  defineHandler,
-  EventHandlerRequest,
-  EventHandlerWithFetch,
-  H3,
-  H3Event,
-  serve,
-} from "h3";
+import { defineHandler, EventHandlerRequest, EventHandlerWithFetch, H3, H3Event, serve } from "h3";
 import { HTTPError } from "h3";
+import { ipv4ToBuffer, ipv6ToBuffer } from "ipdo";
+
 import type { Driver, DNSRecord, DOHResponse } from "..";
 import { createDNSManager } from "..";
-import { ipv4ToBuffer, ipv6ToBuffer } from "ipdo";
 
 // DNS type mapping: string to number
 const DNS_TYPE_NUMBERS: Record<string, number> = {
@@ -79,10 +73,7 @@ export interface DohServerOptions {
  */
 export function createDohHandler(
   opts: DohServerOptions = {},
-): EventHandlerWithFetch<
-  EventHandlerRequest,
-  Promise<DOHResponse | string | ArrayBuffer>
-> {
+): EventHandlerWithFetch<EventHandlerRequest, Promise<DOHResponse | string | ArrayBuffer>> {
   const dnsManager = createDNSManager({
     driver: opts.driver || { name: "default" },
   });
@@ -123,9 +114,7 @@ export function createDohHandler(
         try {
           // Base64URL decode
           const base64 = dnsParam.replace(/-/g, "+").replace(/_/g, "/");
-          const decodedData = Uint8Array.from(atob(base64), (c) =>
-            c.charCodeAt(0),
-          );
+          const decodedData = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
           const query = parseDNSWireFormat(decodedData.buffer);
           if (!query) {
             throw new HTTPError({
@@ -148,8 +137,7 @@ export function createDohHandler(
         if (!contentType.includes("application/dns-message")) {
           throw new HTTPError({
             statusCode: 415,
-            statusMessage:
-              "Unsupported Media Type: content-type must be 'application/dns-message'",
+            statusMessage: "Unsupported Media Type: content-type must be 'application/dns-message'",
           });
         }
 
@@ -262,10 +250,7 @@ export function createDohHandler(
  * Create a complete DoH server
  */
 export function createDohServer(opts: DohServerOptions = {}): {
-  handler: EventHandlerWithFetch<
-    EventHandlerRequest,
-    Promise<DOHResponse | string | ArrayBuffer>
-  >;
+  handler: EventHandlerWithFetch<EventHandlerRequest, Promise<DOHResponse | string | ArrayBuffer>>;
   serve: (port?: number) => void;
 } {
   const handler = createDohHandler(opts);
@@ -304,9 +289,7 @@ function parseDNSWireFormat(
       if (length === 0) break;
       if (length > 63) return null; // Invalid label length
 
-      const label = new TextDecoder().decode(
-        buffer.slice(offset + 1, offset + 1 + length),
-      );
+      const label = new TextDecoder().decode(buffer.slice(offset + 1, offset + 1 + length));
       labels.push(label);
       offset += 1 + length;
     }
@@ -584,9 +567,7 @@ function combineArrays(arrays: Uint8Array[]): Uint8Array {
 /**
  * Detect request format based on Accept header and URL parameters
  */
-function detectRequestFormat(
-  event: H3Event<EventHandlerRequest>,
-): "json" | "wire" {
+function detectRequestFormat(event: H3Event<EventHandlerRequest>): "json" | "wire" {
   const url = new URL(event.req.url || "");
   const hasDnsParam = url.searchParams.has("dns");
 
@@ -646,11 +627,7 @@ function convertDNSRecordToDoHAnswer(record: DNSRecord): {
     case "CNAME":
     case "NS":
     case "PTR":
-      if (
-        typedRecord.type === "CNAME" ||
-        typedRecord.type === "NS" ||
-        typedRecord.type === "PTR"
-      ) {
+      if (typedRecord.type === "CNAME" || typedRecord.type === "NS" || typedRecord.type === "PTR") {
         answer.data = typedRecord.value;
       }
       break;
@@ -678,11 +655,7 @@ function convertDNSRecordToDoHAnswer(record: DNSRecord): {
     case "CAA":
       if (typedRecord.type === "CAA") {
         const critical = typedRecord.critical || 0;
-        const tag = typedRecord.issue
-          ? "issue"
-          : typedRecord.iodef
-            ? "iodef"
-            : "unknown";
+        const tag = typedRecord.issue ? "issue" : typedRecord.iodef ? "iodef" : "unknown";
         const value = typedRecord.issue || typedRecord.iodef || "";
         answer.data = `${critical} ${tag} "${value}"`;
       }

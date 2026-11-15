@@ -88,14 +88,8 @@ const cidr = "192.168.1.0/24";
 const range = parseCIDR(cidr);
 console.log(`parseCIDR('${cidr}') =`, range);
 
-console.log(
-  `ipInRange('${cidr}', '192.168.1.100') =`,
-  ipInRange(cidr, "192.168.1.100"),
-);
-console.log(
-  `ipInRange('${cidr}', '192.168.2.100') =`,
-  ipInRange(cidr, "192.168.2.100"),
-);
+console.log(`ipInRange('${cidr}', '192.168.1.100') =`, ipInRange(cidr, "192.168.1.100"));
+console.log(`ipInRange('${cidr}', '192.168.2.100') =`, ipInRange(cidr, "192.168.2.100"));
 
 console.log(`firstIPInRange('${cidr}') =`, firstIPInRange(cidr));
 console.log(`lastIPInRange('${cidr}') =`, lastIPInRange(cidr));

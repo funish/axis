@@ -31,22 +31,23 @@
   "files": [
     "dist"
   ],
+  "type": "module",
   "main": "dist/index.mjs",
-  "types": "dist/index.d.ts",
+  "types": "dist/index.d.mts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
     },
     "./drivers/*": {
-      "import": "./dist/drivers/*.mjs",
-      "require": "./dist/drivers/*.cjs",
-      "types": "./dist/drivers/*.d.ts"
+      "types": "./dist/drivers/*.d.mts",
+      "import": "./dist/drivers/*.mjs"
     }
   },
   "scripts": {
-    "dev": "unbuild --stub",
-    "build": "unbuild",
-    "prepack": "pnpm build"
+    "dev": "basis build --stub",
+    "build": "vp pack",
+    "prepack": "pnpm build",
+    "release": "basis publish"
   }
 }

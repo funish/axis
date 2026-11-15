@@ -1,4 +1,5 @@
 import { ofetch } from "ofetch";
+
 import type {
   Driver,
   DNSRecord,
@@ -45,10 +46,7 @@ export default function dohDriver(options: DOHDriverOptions = {}): Driver {
   }
 
   // Fetch DOH records from endpoint
-  async function fetchDOHRecords(
-    hostname: string,
-    recordType: string,
-  ): Promise<DOHResponse> {
+  async function fetchDOHRecords(hostname: string, recordType: string): Promise<DOHResponse> {
     const url = new URL(endpoint);
     url.searchParams.set("name", hostname);
     url.searchParams.set("type", recordType);
@@ -63,11 +61,7 @@ export default function dohDriver(options: DOHDriverOptions = {}): Driver {
   }
 
   // Convert DOH data to DNSRecord based on type
-  function convertDataToRecord(
-    data: string,
-    recordType: string,
-    ttl: number,
-  ): DNSRecord {
+  function convertDataToRecord(data: string, recordType: string, ttl: number): DNSRecord {
     const upperType = recordType.toUpperCase();
 
     switch (upperType) {
@@ -190,16 +184,11 @@ export default function dohDriver(options: DOHDriverOptions = {}): Driver {
 
     return answers
       .filter((answer) => answer.type === typeNum)
-      .map((answer) =>
-        convertDataToRecord(answer.data, recordType, answer.TTL),
-      );
+      .map((answer) => convertDataToRecord(answer.data, recordType, answer.TTL));
   }
 
   // Get records method
-  const getRecords = async (
-    domain: string,
-    options?: RecordOptions,
-  ): Promise<DNSRecord[]> => {
+  const getRecords = async (domain: string, options?: RecordOptions): Promise<DNSRecord[]> => {
     const hostname = buildHostname(domain, options?.name);
     const recordTypes = options?.type
       ? [options.type]
@@ -231,10 +220,7 @@ export default function dohDriver(options: DOHDriverOptions = {}): Driver {
     // Read operations
     getRecords,
 
-    getRecord: async (
-      domain: string,
-      options?: RecordOptions,
-    ): Promise<DNSRecord | null> => {
+    getRecord: async (domain: string, options?: RecordOptions): Promise<DNSRecord | null> => {
       try {
         const records = await getRecords(domain, options);
         return records[0] || null;
@@ -256,31 +242,19 @@ export default function dohDriver(options: DOHDriverOptions = {}): Driver {
     },
 
     // Write operations - not supported by DOH (read-only protocol)
-    setRecord: async (
-      _domain: string,
-      _record: DNSRecordInput,
-    ): Promise<DNSRecord> => {
+    setRecord: async (_domain: string, _record: DNSRecordInput): Promise<DNSRecord> => {
       throw new Error("DOH driver is read-only: cannot set records");
     },
 
-    setRecords: async (
-      _domain: string,
-      _records: DNSRecordInput[],
-    ): Promise<DNSRecord[]> => {
+    setRecords: async (_domain: string, _records: DNSRecordInput[]): Promise<DNSRecord[]> => {
       throw new Error("DOH driver is read-only: cannot set records");
     },
 
-    removeRecord: async (
-      _domain: string,
-      _record: DNSRecord,
-    ): Promise<void> => {
+    removeRecord: async (_domain: string, _record: DNSRecord): Promise<void> => {
       throw new Error("DOH driver is read-only: cannot remove records");
     },
 
-    removeRecords: async (
-      _domain: string,
-      _records: DNSRecord[],
-    ): Promise<void> => {
+    removeRecords: async (_domain: string, _records: DNSRecord[]): Promise<void> => {
       throw new Error("DOH driver is read-only: cannot remove records");
     },
 

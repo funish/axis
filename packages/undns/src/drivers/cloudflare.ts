@@ -1,12 +1,7 @@
 import Cloudflare, { type ClientOptions } from "cloudflare";
 import type { RecordListParams } from "cloudflare/resources/dns/records";
-import type {
-  Driver,
-  DNSRecord,
-  DNSRecordInput,
-  DriverOptions,
-  RecordOptions,
-} from "..";
+
+import type { Driver, DNSRecord, DNSRecordInput, DriverOptions, RecordOptions } from "..";
 
 // Use Cloudflare ClientOptions directly, only add DriverOptions extension
 export interface CloudflareDriverOptions extends DriverOptions, ClientOptions {}
@@ -14,9 +9,7 @@ export interface CloudflareDriverOptions extends DriverOptions, ClientOptions {}
 // Cloudflare DNS record type mapping
 type CloudflareDnsRecordType = Exclude<RecordListParams["type"], undefined>;
 
-export default function cloudflareDriver(
-  options: CloudflareDriverOptions,
-): Driver {
+export default function cloudflareDriver(options: CloudflareDriverOptions): Driver {
   const client = new Cloudflare(options);
 
   // Helper: Get zone ID from domain
@@ -44,20 +37,14 @@ export default function cloudflareDriver(
   }
 
   // Get records method
-  const getRecords = async (
-    domain: string,
-    options?: RecordOptions,
-  ): Promise<DNSRecord[]> => {
+  const getRecords = async (domain: string, options?: RecordOptions): Promise<DNSRecord[]> => {
     try {
       const zoneId = await getZoneId(domain);
       const records = [];
 
       // Get records of specified type
-      const recordType =
-        options?.type?.toUpperCase() as RecordListParams["type"];
-      const recordName = options?.name
-        ? `${options.name}.${domain}`
-        : undefined;
+      const recordType = options?.type?.toUpperCase() as RecordListParams["type"];
+      const recordName = options?.name ? `${options.name}.${domain}` : undefined;
 
       const listParams: RecordListParams = {
         zone_id: zoneId,
@@ -84,9 +71,7 @@ export default function cloudflareDriver(
 
     // Build record name
     const cloudflareRecordName =
-      recordName === domain || recordName === "@"
-        ? domain
-        : `${recordName}.${domain}`;
+      recordName === domain || recordName === "@" ? domain : `${recordName}.${domain}`;
 
     const baseRecord = {
       name: cloudflareRecordName,
@@ -157,8 +142,7 @@ export default function cloudflareDriver(
       case "TXT":
         return { ...base, entries: [content] };
       case "SRV":
-        const [srvPriority, srvWeight, srvPort, ...srvNameParts] =
-          content.split(" ");
+        const [srvPriority, srvWeight, srvPort, ...srvNameParts] = content.split(" ");
         return {
           ...base,
           priority: parseInt(srvPriority),
@@ -190,10 +174,7 @@ export default function cloudflareDriver(
     // Read operations
     getRecords,
 
-    getRecord: async (
-      domain: string,
-      options?: RecordOptions,
-    ): Promise<DNSRecord | null> => {
+    getRecord: async (domain: string, options?: RecordOptions): Promise<DNSRecord | null> => {
       try {
         const records = await getRecords(domain, options);
         return records[0] || null;
@@ -215,10 +196,7 @@ export default function cloudflareDriver(
     },
 
     // Write operations
-    setRecord: async (
-      domain: string,
-      record: DNSRecordInput,
-    ): Promise<DNSRecord> => {
+    setRecord: async (domain: string, record: DNSRecordInput): Promise<DNSRecord> => {
       try {
         const zoneId = await getZoneId(domain);
         const cloudflareRecord = toCloudflareRecord(record, domain);
@@ -233,10 +211,7 @@ export default function cloudflareDriver(
       }
     },
 
-    setRecords: async (
-      domain: string,
-      records: DNSRecordInput[],
-    ): Promise<DNSRecord[]> => {
+    setRecords: async (domain: string, records: DNSRecordInput[]): Promise<DNSRecord[]> => {
       try {
         const zoneId = await getZoneId(domain);
         const results = [];
@@ -252,9 +227,7 @@ export default function cloudflareDriver(
 
         return results;
       } catch (error) {
-        throw new Error(
-          `Failed to set records for ${domain}: ${String(error)}`,
-        );
+        throw new Error(`Failed to set records for ${domain}: ${String(error)}`);
       }
     },
 
@@ -271,16 +244,11 @@ export default function cloudflareDriver(
           zone_id: zoneId,
         });
       } catch (error) {
-        throw new Error(
-          `Failed to remove record for ${domain}: ${String(error)}`,
-        );
+        throw new Error(`Failed to remove record for ${domain}: ${String(error)}`);
       }
     },
 
-    removeRecords: async (
-      domain: string,
-      records: DNSRecord[],
-    ): Promise<void> => {
+    removeRecords: async (domain: string, records: DNSRecord[]): Promise<void> => {
       try {
         const zoneId = await getZoneId(domain);
 
@@ -293,9 +261,7 @@ export default function cloudflareDriver(
           }
         }
       } catch (error) {
-        throw new Error(
-          `Failed to remove records for ${domain}: ${String(error)}`,
-        );
+        throw new Error(`Failed to remove records for ${domain}: ${String(error)}`);
       }
     },
 

@@ -1,9 +1,5 @@
 import { UnsslError } from "./errors";
-import type {
-  Dns01Challenge,
-  UnsslManager,
-  UnsslManagerOptions,
-} from "./types";
+import type { Dns01Challenge, UnsslManager, UnsslManagerOptions } from "./types";
 
 export function createUnsslManager(options: UnsslManagerOptions): UnsslManager {
   const driver = options.driver;
@@ -41,10 +37,7 @@ export function createUnsslManager(options: UnsslManagerOptions): UnsslManager {
 
     async renew(certificate, request) {
       assertAvailable();
-      return requireMethod(driver.renew, "renewing certificates")(
-        certificate,
-        request,
-      );
+      return requireMethod(driver.renew, "renewing certificates")(certificate, request);
     },
 
     async revoke(request) {
@@ -54,30 +47,21 @@ export function createUnsslManager(options: UnsslManagerOptions): UnsslManager {
 
     async getDeploymentMetadata(certificateId) {
       assertAvailable();
-      return requireMethod(
-        driver.getDeploymentMetadata,
-        "deployment metadata",
-      )(certificateId);
+      return requireMethod(driver.getDeploymentMetadata, "deployment metadata")(certificateId);
     },
 
     async createChallenge(request) {
       assertAvailable();
-      return requireMethod(
-        driver.createChallenge,
-        "certificate challenges",
-      )(request);
+      return requireMethod(driver.createChallenge, "certificate challenges")(request);
     },
 
     async putDns01Challenge(challenge: Dns01Challenge) {
       assertAvailable();
       if (!options.dns) {
-        throw new UnsslError(
-          "DNS-01 challenge placement requires injected DNS operations",
-          {
-            code: "invalid_request",
-            provider: driver.name,
-          },
-        );
+        throw new UnsslError("DNS-01 challenge placement requires injected DNS operations", {
+          code: "invalid_request",
+          provider: driver.name,
+        });
       }
       const record = {
         name: challenge.recordName,
@@ -96,13 +80,10 @@ export function createUnsslManager(options: UnsslManagerOptions): UnsslManager {
     async removeDns01Challenge(challenge: Dns01Challenge) {
       assertAvailable();
       if (!options.dns) {
-        throw new UnsslError(
-          "DNS-01 challenge cleanup requires injected DNS operations",
-          {
-            code: "invalid_request",
-            provider: driver.name,
-          },
-        );
+        throw new UnsslError("DNS-01 challenge cleanup requires injected DNS operations", {
+          code: "invalid_request",
+          provider: driver.name,
+        });
       }
       const records = await options.dns.getRecords(challenge.identifier, {
         name: challenge.recordName,

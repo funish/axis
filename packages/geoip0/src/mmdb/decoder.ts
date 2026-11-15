@@ -4,6 +4,7 @@
  */
 
 import { toUint8Array, DataType } from "undio";
+
 import { MMDBRecordType } from "./types";
 
 const pointerValueOffset = [0, 2048, 526336, 0];
@@ -43,9 +44,7 @@ export class MMDBDecoder {
     if (type === MMDBRecordType.Extended) {
       tmp = this.data[offset] + 7;
       if (tmp < 8) {
-        throw new Error(
-          "Invalid Extended Type at offset " + offset + " val " + tmp,
-        );
+        throw new Error("Invalid Extended Type at offset " + offset + " val " + tmp);
       }
 
       type = tmp;
@@ -215,11 +214,7 @@ export class MMDBDecoder {
    * Decode double (matches original mmdb-lib)
    */
   private decodeDouble(offset: number): number {
-    const view = new DataView(
-      this.data.buffer,
-      this.data.byteOffset + offset,
-      8,
-    );
+    const view = new DataView(this.data.buffer, this.data.byteOffset + offset, 8);
     return view.getFloat64(0, false); // big-endian
   }
 
@@ -227,11 +222,7 @@ export class MMDBDecoder {
    * Decode float (matches original mmdb-lib)
    */
   private decodeFloat(offset: number): number {
-    const view = new DataView(
-      this.data.buffer,
-      this.data.byteOffset + offset,
-      4,
-    );
+    const view = new DataView(this.data.buffer, this.data.byteOffset + offset, 4);
     return view.getFloat32(0, false); // big-endian
   }
 
@@ -246,21 +237,14 @@ export class MMDBDecoder {
    * Decode signed 32-bit integer (matches original mmdb-lib)
    */
   private decodeInt32BE(offset: number): number {
-    const view = new DataView(
-      this.data.buffer,
-      this.data.byteOffset + offset,
-      4,
-    );
+    const view = new DataView(this.data.buffer, this.data.byteOffset + offset, 4);
     return view.getInt32(0, false); // big-endian
   }
 
   /**
    * Get size from control byte (matches original mmdb-lib)
    */
-  private sizeFromCtrlByte(
-    ctrlByte: number,
-    offset: number,
-  ): { offset: number; value: number } {
+  private sizeFromCtrlByte(ctrlByte: number, offset: number): { offset: number; value: number } {
     const size = ctrlByte & 0x1f;
 
     if (size < 29) {
@@ -313,11 +297,7 @@ export class MMDBDecoder {
    * Read signed 32-bit big-endian
    */
   private readInt32BE(offset: number): number {
-    const view = new DataView(
-      this.data.buffer,
-      this.data.byteOffset + offset,
-      4,
-    );
+    const view = new DataView(this.data.buffer, this.data.byteOffset + offset, 4);
     return view.getInt32(0, false); // big-endian
   }
 }

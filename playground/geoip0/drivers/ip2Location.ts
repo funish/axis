@@ -3,8 +3,8 @@
  * Demonstrating GeoIP lookup functionality with ip2location.io service
  */
 
-import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import ip2LocationDriver from "../../../packages/geoip0/src/drivers/ip2Location";
+import { createGeoIPManager } from "../../../packages/geoip0/src/geo";
 import type { QueryOptions } from "../../../packages/geoip0/src/types";
 
 console.log("ip2location.io Driver Examples\n");
@@ -160,12 +160,8 @@ try {
   const batchResults = await geoip.batchLookup(testIPs.slice(0, 2));
   const batchTime = Date.now() - batchStart;
 
-  console.log(
-    `Sequential lookup: ${sequentialTime}ms for ${sequentialResults.length} results`,
-  );
-  console.log(
-    `Constructed batch lookup: ${batchTime}ms for ${batchResults?.length || 0} results`,
-  );
+  console.log(`Sequential lookup: ${sequentialTime}ms for ${sequentialResults.length} results`);
+  console.log(`Constructed batch lookup: ${batchTime}ms for ${batchResults?.length || 0} results`);
   if (batchResults && sequentialTime > 0) {
     console.log(
       `Performance difference: ${batchTime - sequentialTime}ms (${(((batchTime - sequentialTime) / sequentialTime) * 100).toFixed(1)}% ${batchTime > sequentialTime ? "slower" : "faster"})`,

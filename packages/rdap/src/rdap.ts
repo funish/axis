@@ -4,9 +4,10 @@
  * @see https://www.icann.org/rdap
  */
 
+import { ipInRange } from "ipdo";
 import { ofetch } from "ofetch";
 import type { FetchError } from "ofetch";
-import { ipInRange } from "ipdo";
+
 import { asn, dns, ipv4, ipv6, objectTags } from "./bootstrap";
 import {
   RdapBootstrapType,
@@ -48,26 +49,18 @@ export async function getBootstrapMetadata(
       return metadata[type];
     }
 
-    return await ofetch<RdapBootstrapMetadata>(
-      `https://data.iana.org/rdap/${type}.json`,
-      {
-        parseResponse: JSON.parse,
-      },
-    );
+    return await ofetch<RdapBootstrapMetadata>(`https://data.iana.org/rdap/${type}.json`, {
+      parseResponse: JSON.parse,
+    });
   } catch (error) {
-    throw new Error(
-      `Failed to get bootstrap metadata for ${type}: ${String(error)}`,
-    );
+    throw new Error(`Failed to get bootstrap metadata for ${type}: ${String(error)}`);
   }
 }
 
 /**
  * Find RDAP server for a query
  */
-export async function findBootstrapServer(
-  type: RdapBootstrapType,
-  query: string,
-): Promise<string> {
+export async function findBootstrapServer(type: RdapBootstrapType, query: string): Promise<string> {
   try {
     const metadata = await getBootstrapMetadata(type);
 
@@ -102,9 +95,7 @@ export async function findBootstrapServer(
 
     return service[service.length - 1][0];
   } catch (error) {
-    throw new Error(
-      `Failed to find RDAP server for ${type} query: ${query}: ${String(error)}`,
-    );
+    throw new Error(`Failed to find RDAP server for ${type} query: ${query}: ${String(error)}`);
   }
 }
 
@@ -150,10 +141,7 @@ export async function getServerUrl(
       throw new Error(`Unsupported query type: ${String(queryType)}`);
   }
 
-  const baseUrl = (await findBootstrapServer(bootstrapType, query)).replace(
-    /\/$/,
-    "",
-  );
+  const baseUrl = (await findBootstrapServer(bootstrapType, query)).replace(/\/$/, "");
   const endpointType = bootstrapTypeToQueryType(bootstrapType, queryType);
 
   return `${baseUrl}/${endpointType}/${query}`;
@@ -239,22 +227,14 @@ export async function queryEntity<T = RdapEntity>(
   return queryRDAP<T>(handle, { ...options, type: "entity" });
 }
 
-export async function queryIP<T = RdapIpNetwork>(
-  ip: string,
-  options?: RdapOptions,
-): Promise<T> {
+export async function queryIP<T = RdapIpNetwork>(ip: string, options?: RdapOptions): Promise<T> {
   return queryRDAP<T>(ip, { ...options, type: "ip" });
 }
 
-export async function queryASN<T = RdapAutnum>(
-  asn: string,
-  options?: RdapOptions,
-): Promise<T> {
+export async function queryASN<T = RdapAutnum>(asn: string, options?: RdapOptions): Promise<T> {
   return queryRDAP<T>(asn, { ...options, type: "autnum" });
 }
 
-export async function queryHelp<T = RdapHelp>(
-  options?: RdapOptions,
-): Promise<T> {
+export async function queryHelp<T = RdapHelp>(options?: RdapOptions): Promise<T> {
   return queryRDAP<T>("help", { ...options, type: "help" });
 }

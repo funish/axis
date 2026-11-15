@@ -3,9 +3,10 @@
  * Universal MMDB parser creation using undio data type support
  */
 
+import { toUint8Array, DataType } from "undio";
+
 import { MMDBParser } from "./parser";
 import type { MMDBOptions } from "./types";
-import { toUint8Array, DataType } from "undio";
 
 /**
  * Create MMDB parser from any supported undio DataType

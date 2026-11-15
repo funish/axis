@@ -2,52 +2,53 @@
   "name": "unping",
   "version": "0.0.3",
   "description": "Unified network ping library with multi-driver support",
-  "main": "dist/index.mjs",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
-    },
-    "./drivers/*": {
-      "import": "./dist/drivers/*.mjs",
-      "require": "./dist/drivers/*.cjs",
-      "types": "./dist/drivers/*.d.ts"
-    }
-  },
-  "scripts": {
-    "dev": "unbuild --stub",
-    "build": "unbuild",
-    "prepack": "pnpm build"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/funish/axis.git"
-  },
   "keywords": [
-    "ping",
-    "network",
-    "tcp",
-    "http",
+    "connectivity",
     "dns",
+    "http",
     "latency",
     "monitoring",
-    "connectivity",
+    "network",
+    "ping",
+    "tcp",
     "typescript"
   ],
+  "homepage": "https://github.com/funish/axis#readme",
+  "bugs": {
+    "url": "https://github.com/funish/axis/issues"
+  },
+  "license": "MIT",
   "author": {
     "name": "Funish",
     "email": "contact@funish.net",
     "url": "http://www.funish.net/"
   },
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/funish/axis/issues"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/funish/axis.git"
   },
-  "homepage": "https://github.com/funish/axis#readme",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./drivers/*": {
+      "types": "./dist/drivers/*.d.mts",
+      "import": "./dist/drivers/*.mjs"
+    }
+  },
+  "scripts": {
+    "dev": "basis build --stub",
+    "build": "vp pack",
+    "prepack": "pnpm build",
+    "release": "basis publish"
+  },
   "dependencies": {
     "ofetch": "1.4.1"
   }

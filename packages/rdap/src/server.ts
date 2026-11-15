@@ -4,17 +4,12 @@
  * @see https://www.icann.org/rdap
  */
 
-import {
-  defineHandler,
-  EventHandlerRequest,
-  EventHandlerWithFetch,
-  H3,
-  serve,
-} from "h3";
+import { defineHandler, EventHandlerRequest, EventHandlerWithFetch, H3, serve } from "h3";
 import { HTTPError } from "h3";
+
+import { queryRDAP } from "./rdap";
 import { RdapQueryType, RdapOptions, RdapHelp, RdapResponse } from "./types";
 import { getQueryType, convertToAscii } from "./utils";
-import { queryRDAP } from "./rdap";
 
 export type RdapServerRequest = {
   request: globalThis.Request;
@@ -169,9 +164,7 @@ export function createRdapHandler(
         notices: [
           {
             title: "Terms of Service",
-            description: [
-              "By using this RDAP service, you are agreeing to the service terms",
-            ],
+            description: ["By using this RDAP service, you are agreeing to the service terms"],
             links: [
               {
                 value: `${baseUrl}/help`,
@@ -254,10 +247,7 @@ export function createRdapHandler(
  * Create RDAP server with convenience wrapper
  */
 export function createRdapServer(opts: RdapServerOptions = {}): {
-  handler: EventHandlerWithFetch<
-    EventHandlerRequest,
-    Promise<RdapResponse | string>
-  >;
+  handler: EventHandlerWithFetch<EventHandlerRequest, Promise<RdapResponse | string>>;
   serve: (port?: number) => void;
 } {
   const handler = createRdapHandler(opts);
@@ -302,13 +292,7 @@ function parseRdapPath(path: string): {
   }
 
   // Check if it's already a valid RDAP path format
-  const validTypes: RdapQueryType[] = [
-    "domain",
-    "nameserver",
-    "entity",
-    "ip",
-    "autnum",
-  ];
+  const validTypes: RdapQueryType[] = ["domain", "nameserver", "entity", "ip", "autnum"];
 
   if (validTypes.includes(typePart as RdapQueryType) && valueParts.length > 0) {
     const queryType = typePart as RdapQueryType;

@@ -6,11 +6,7 @@
  * Convert IPv4 address to 32-bit number
  */
 export function ipv4ToInt(ip: string): number {
-  return (
-    ip
-      .split(".")
-      .reduce((int, oct) => (int << 8) + Number.parseInt(oct, 10), 0) >>> 0
-  );
+  return ip.split(".").reduce((int, oct) => (int << 8) + Number.parseInt(oct, 10), 0) >>> 0;
 }
 
 /**
@@ -213,8 +209,7 @@ export function isPrivateIPv4(ip: string | number): boolean {
   const value = typeof ip === "string" ? ipv4ToInt(ip) : ip;
   return (
     (value >= ipv4ToInt("10.0.0.0") && value <= ipv4ToInt("10.255.255.255")) ||
-    (value >= ipv4ToInt("172.16.0.0") &&
-      value <= ipv4ToInt("172.31.255.255")) ||
+    (value >= ipv4ToInt("172.16.0.0") && value <= ipv4ToInt("172.31.255.255")) ||
     (value >= ipv4ToInt("192.168.0.0") && value <= ipv4ToInt("192.168.255.255"))
   );
 }
@@ -224,9 +219,7 @@ export function isPrivateIPv4(ip: string | number): boolean {
  */
 export function isLoopbackIPv4(ip: string | number): boolean {
   const value = typeof ip === "string" ? ipv4ToInt(ip) : ip;
-  return (
-    value >= ipv4ToInt("127.0.0.0") && value <= ipv4ToInt("127.255.255.255")
-  );
+  return value >= ipv4ToInt("127.0.0.0") && value <= ipv4ToInt("127.255.255.255");
 }
 
 /**
@@ -234,9 +227,7 @@ export function isLoopbackIPv4(ip: string | number): boolean {
  */
 export function isMulticastIPv4(ip: string | number): boolean {
   const value = typeof ip === "string" ? ipv4ToInt(ip) : ip;
-  return (
-    value >= ipv4ToInt("224.0.0.0") && value <= ipv4ToInt("239.255.255.255")
-  );
+  return value >= ipv4ToInt("224.0.0.0") && value <= ipv4ToInt("239.255.255.255");
 }
 
 /**
@@ -387,9 +378,7 @@ export function ipInRange(cidr: string, ip: string): boolean {
       return ipInt >= (range.start as number) && ipInt <= (range.end as number);
     } else {
       const ipBigInt = ipv6ToBigInt(ip);
-      return (
-        ipBigInt >= (range.start as bigint) && ipBigInt <= (range.end as bigint)
-      );
+      return ipBigInt >= (range.start as bigint) && ipBigInt <= (range.end as bigint);
     }
   } catch {
     return false;

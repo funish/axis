@@ -3,9 +3,9 @@
  * Demonstrating HTTP server functionality for GeoIP services
  */
 
-import { createGeoIPServer } from "../../packages/geoip0/src/server";
 // import ipsbDriver from "../../packages/geoip0/src/drivers/ipsb";
 import cloudflareDriver from "../../packages/geoip0/src/drivers/cloudflare";
+import { createGeoIPServer } from "../../packages/geoip0/src/server";
 
 console.log("GeoIP0 Server Examples\n");
 
@@ -68,7 +68,7 @@ exampleRequests.forEach((req) => {
 });
 
 console.log("\n=== Usage Instructions ===");
-console.log("1. Start the server: bun run server.ts");
+console.log("1. Start the server: node server.ts");
 console.log("2. Open browser: http://localhost:3000/help");
 console.log("3. Test with curl examples:");
 console.log("   curl http://localhost:3000/current");
@@ -78,9 +78,7 @@ console.log("   curl http://localhost:3000/8.8.8.8?version=ipv4");
 // Demonstrate creating server with Cloudflare driver
 console.log("\n=== Multiple Server Examples ===");
 console.log("// Create server with Cloudflare driver:");
-console.log(
-  "const cfServer = createGeoIPServer({ driver: cloudflareDriver() });",
-);
+console.log("const cfServer = createGeoIPServer({ driver: cloudflareDriver() });");
 console.log("cfServer.serve(3001); // Start on port 3001");
 
 console.log("\nGeoIP0 server examples completed!");

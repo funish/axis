@@ -118,14 +118,7 @@ console.log(rangesOverlap("192.168.0.0/24", "10.0.0.0/24")); // false
 ### 🔄 Binary and Numeric Conversions
 
 ```typescript
-import {
-  ipv4ToInt,
-  intToIPv4,
-  ipv6ToBigInt,
-  bigIntToIPv6,
-  toBinary,
-  toNumber,
-} from "ipdo";
+import { ipv4ToInt, intToIPv4, ipv6ToBigInt, bigIntToIPv6, toBinary, toNumber } from "ipdo";
 
 // IPv4 conversions
 console.log(ipv4ToInt("192.168.0.1")); // 3232235521
