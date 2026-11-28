@@ -1,6 +1,6 @@
 {
   "name": "undns",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "Unified DNS library with multi-driver support, DoH server, and comprehensive record management",
   "keywords": [
     "cloudflare",

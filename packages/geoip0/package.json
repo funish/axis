@@ -1,6 +1,6 @@
 {
   "name": "geoip0",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "Unified geolocation information query library with multi-provider and fallback support",
   "keywords": [
     "asn",

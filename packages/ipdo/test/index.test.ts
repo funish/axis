@@ -390,6 +390,27 @@ describe("membership and overlap", () => {
     expect(ipInRange("::ffff:192.168.0.0/120", "::ffff:192.168.1.1")).toBe(false);
   });
 
+  it("keeps unsigned CIDR boundaries and broad compressed IPv6 ranges inclusive", () => {
+    expect(parseCIDR("169.254.0.0/16")).toEqual({
+      start: 0xa9fe0000,
+      end: 0xa9feffff,
+      prefix: 16,
+      version: 4,
+    });
+    expect(ipInRange("169.254.0.0/16", "169.254.169.254")).toBe(true);
+    expect(ipInRange("172.16.0.0/12", "172.31.255.255")).toBe(true);
+    expect(ipInRange("192.168.0.0/16", "192.168.1.1")).toBe(true);
+    expect(ipInRange("198.18.0.0/15", "198.19.255.255")).toBe(true);
+    expect(ipInRange("224.0.0.0/4", "239.255.255.255")).toBe(true);
+    expect(parseCIDR("2000::/3")).toEqual({
+      start: 0x2000n * (1n << 112n),
+      end: 0x4000n * (1n << 112n) - 1n,
+      prefix: 3,
+      version: 6,
+    });
+    expect(ipInRange("2000::/3", "2606:4700:4700::1111")).toBe(true);
+  });
+
   it("checks adjacent and nested ranges", () => {
     expect(rangesOverlap("192.168.0.0/25", "192.168.0.128/25")).toBe(false);
     expect(rangesOverlap("192.168.0.0/24", "192.168.0.128/25")).toBe(true);
