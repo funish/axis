@@ -1,7 +1,10 @@
 import { createHash, createHmac } from "node:crypto";
 
 import { classifyHttpError, SSLError } from "./errors";
+import { jwkThumbprint } from "./jws";
 import type {
+  AcmeAccountContext,
+  AcmeAccountProvider,
   AcmeAuthorization,
   AcmeChallenge,
   AcmeDirectory,
@@ -74,20 +77,7 @@ export function createChallengeFromKeyAuthorization(
   };
 }
 
-export function accountJwkThumbprint(accountJwk: Record<string, unknown>): string {
-  const keys = Object.keys(accountJwk)
-    .filter((key) => ["crv", "e", "kty", "n", "x", "y"].includes(key))
-    .sort();
-  if (keys.length === 0) {
-    throw new SSLError(
-      "accountJwk must contain EC (crv/x/y) or RSA (e/kty/n) fields for ACME challenges",
-      { code: "invalid_request", provider: "acme" },
-    );
-  }
-  const canonical: Record<string, unknown> = {};
-  for (const key of keys) canonical[key] = accountJwk[key];
-  return createHash("sha256").update(JSON.stringify(canonical)).digest("base64url");
-}
+export const accountJwkThumbprint = jwkThumbprint;
 
 export class MemoryNonceStore implements NonceStore {
   #nonces: string[] = [];
@@ -108,9 +98,14 @@ export interface AcmeClientOptions {
   nonceStore?: NonceStore;
   accountUrl?: string;
   accountJwk?: Record<string, unknown>;
+  /** Materialized account context or a provider that can load/generate it lazily. */
+  account?: AcmeAccountContext | AcmeAccountProvider;
   contacts?: string[];
   externalAccount?: AcmeExternalAccountBinding;
   provider?: string;
+  nonceRetryLimit?: number;
+  nonceRetryBaseMs?: number;
+  nonceRetryMaxMs?: number;
 }
 
 const revokeReasonCodes: Record<RevokeReason, number> = {
@@ -138,7 +133,13 @@ export class AcmeClient {
   #signer?: JwsSigner;
   #accountUrl?: string;
   #accountJwk?: Record<string, unknown>;
+  #accountContext?: AcmeAccountContext;
+  #accountProvider?: AcmeAccountProvider;
+  #accountKeyPromise?: Promise<AcmeAccountContext>;
   #directory?: AcmeDirectory;
+  #nonceRetryLimit: number;
+  #nonceRetryBaseMs: number;
+  #nonceRetryMaxMs: number;
 
   constructor(options: AcmeClientOptions) {
     this.directoryUrl = options.directoryUrl;
@@ -146,14 +147,73 @@ export class AcmeClient {
     this.nonceStore = options.nonceStore || new MemoryNonceStore();
     this.contacts = options.contacts || [];
     this.externalAccount = options.externalAccount;
+    if (options.account && (options.signer || options.accountJwk)) {
+      throw new SSLError(
+        "Use either an ACME account provider or explicit signer/accountJwk, not both",
+        { code: "invalid_request", provider: this.provider },
+      );
+    }
+
     this.#fetch = options.fetch || globalThis.fetch;
     this.#signer = options.signer;
     this.#accountUrl = options.accountUrl;
     this.#accountJwk = options.accountJwk;
+    if (typeof options.account === "function") {
+      this.#accountProvider = options.account;
+    } else if (options.account) {
+      this.#accountContext = options.account;
+      this.#signer = options.account;
+      this.#accountJwk = options.account.accountJwk;
+      this.#accountUrl ||= options.account.accountUrl;
+    }
+    this.#nonceRetryLimit = Math.max(1, options.nonceRetryLimit ?? 3);
+    this.#nonceRetryBaseMs = Math.max(0, options.nonceRetryBaseMs ?? 250);
+    this.#nonceRetryMaxMs = Math.max(this.#nonceRetryBaseMs, options.nonceRetryMaxMs ?? 2000);
   }
 
   get accountUrl(): string | undefined {
     return this.#accountUrl;
+  }
+
+  async accountContext(): Promise<AcmeAccountContext> {
+    if (this.#accountContext) return this.#accountContext;
+    if (this.#accountProvider) {
+      if (!this.#accountKeyPromise) {
+        this.#accountKeyPromise = (async () => {
+          const context = await this.#accountProvider?.(this.directoryUrl);
+          if (!context) {
+            throw new SSLError("ACME account provider returned no account context", {
+              code: "key_storage",
+              provider: this.provider,
+            });
+          }
+          this.#accountContext = context;
+          this.#signer = context;
+          this.#accountJwk = context.accountJwk;
+          this.#accountUrl ||= context.accountUrl;
+          return context;
+        })();
+      }
+      return this.#accountKeyPromise;
+    }
+    if (this.#signer) {
+      this.#accountContext = {
+        alg: this.#signer.alg,
+        sign: this.#signer.sign.bind(this.#signer),
+        ...(this.#accountJwk && { accountJwk: this.#accountJwk }),
+        ...(this.#accountUrl && { accountUrl: this.#accountUrl }),
+      };
+      return this.#accountContext;
+    }
+    throw new SSLError("ACME requests require an account provider or injected signer", {
+      code: "invalid_request",
+      provider: this.provider,
+    });
+  }
+
+  /** Reuse an account URL after a key rollover. */
+  adoptAccount(accountUrl: string): void {
+    this.#accountUrl = accountUrl;
   }
 
   private async request(
@@ -232,6 +292,7 @@ export class AcmeClient {
     payload: object,
     options: { accountKey?: boolean; expectedStatus?: number[] } = {},
   ): Promise<Response> {
+    await this.accountContext();
     if (!this.#signer) {
       throw new SSLError("ACME requests require an injected JWS signer", {
         code: "not_supported",
@@ -239,7 +300,7 @@ export class AcmeClient {
       });
     }
 
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < this.#nonceRetryLimit; attempt++) {
       const nonce = (await this.nonceStore.take()) || (await this.newNonce());
       const header: AcmeProtectedHeader = { alg: this.#signer.alg, nonce, url };
       if (options.accountKey) {
@@ -282,8 +343,12 @@ export class AcmeClient {
         );
       } catch (error) {
         const nonce = error instanceof SSLError ? error.nonce : undefined;
-        if (nonce && attempt < 2) {
+        if (nonce && attempt + 1 < this.#nonceRetryLimit) {
           await this.nonceStore.put(nonce);
+          const delay = Math.min(this.#nonceRetryMaxMs, this.#nonceRetryBaseMs * 2 ** attempt);
+          if (delay > 0) {
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
           continue;
         }
         throw error;
@@ -302,6 +367,7 @@ export class AcmeClient {
   async account(): Promise<string> {
     if (this.#accountUrl) return this.#accountUrl;
     const directory = await this.directory();
+    const account = await this.accountContext();
     if (!this.#signer || !this.#accountJwk) {
       throw new SSLError("ACME account registration requires signer and accountJwk", {
         code: "invalid_request",
@@ -352,6 +418,7 @@ export class AcmeClient {
       });
     }
     this.#accountUrl = location;
+    await account.onAccountUrl?.(location);
     return location;
   }
 
@@ -428,6 +495,23 @@ export class AcmeClient {
     return response.text();
   }
 
+  async getAccount(): Promise<Record<string, unknown>> {
+    const accountUrl = await this.account();
+    const response = await this.#postAsGet(accountUrl);
+    return (await response.json()) as Record<string, unknown>;
+  }
+
+  async keyChange(request: AcmeJws): Promise<void> {
+    const directory = await this.directory();
+    if (!directory.keyChange) {
+      throw new SSLError("ACME directory does not expose key change", {
+        code: "not_supported",
+        provider: this.provider,
+      });
+    }
+    await this.signedRequest(directory.keyChange, request, { expectedStatus: [200] });
+  }
+
   async revoke(certificatePem: string, reason: RevokeReason = "unspecified"): Promise<void> {
     const directory = await this.directory();
     if (!directory.revokeCert) {
@@ -445,4 +529,49 @@ export class AcmeClient {
       { expectedStatus: [200] },
     );
   }
+}
+
+export async function changeAcmeAccountKey(
+  oldClient: AcmeClient,
+  newClient: AcmeClient,
+): Promise<void> {
+  const [oldAccount, newAccount] = await Promise.all([
+    oldClient.accountContext(),
+    newClient.accountContext(),
+  ]);
+  const accountUrl = await oldClient.account();
+  if (newClient.accountUrl && newClient.accountUrl !== accountUrl) {
+    throw new SSLError("New ACME client points to a different account", {
+      code: "invalid_request",
+      provider: newClient.provider,
+    });
+  }
+
+  const directory = await oldClient.directory();
+  if (!directory.keyChange) {
+    throw new SSLError("ACME directory does not expose key change", {
+      code: "not_supported",
+      provider: oldClient.provider,
+    });
+  }
+
+  const innerHeader: AcmeProtectedHeader = {
+    alg: newAccount.alg,
+    jwk: newAccount.accountJwk,
+    url: directory.keyChange,
+  };
+  const innerPayload: Record<string, unknown> = {
+    account: accountUrl,
+    oldKey: oldAccount.accountJwk,
+  };
+  const encodedProtected = encodeBase64Url(JSON.stringify(innerHeader));
+  const encodedPayload = encodeBase64Url(JSON.stringify(innerPayload));
+  const innerSignature = await newAccount.sign(innerHeader, JSON.stringify(innerPayload));
+
+  await oldClient.keyChange({
+    protected: encodedProtected,
+    payload: encodedPayload,
+    signature: innerSignature.signature,
+  });
+  newClient.adoptAccount(accountUrl);
 }

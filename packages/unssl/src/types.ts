@@ -135,7 +135,8 @@ export interface AcmeDirectory {
 
 export interface AcmeProtectedHeader {
   alg: string;
-  nonce: string;
+  /** Inner key-change JWS deliberately omits the nonce per RFC 8555. */
+  nonce?: string;
   url: string;
   jwk?: Record<string, unknown>;
   kid?: string;
@@ -146,6 +147,21 @@ export interface AcmeJws {
   payload: string;
   signature: string;
 }
+
+/**
+ * An account key already materialized by the caller. A provider can return this
+ * object after loading it from encrypted storage, a secure enclave, or an
+ * external signer service.
+ */
+export interface AcmeAccountContext extends JwsSigner {
+  /** Required to register an account or derive challenge thumbprints. */
+  accountJwk?: Record<string, unknown>;
+  accountUrl?: string;
+  privateKeyRef?: string;
+  onAccountUrl?: (accountUrl: string) => MaybePromise<void>;
+}
+
+export type AcmeAccountProvider = (directoryUrl: string) => MaybePromise<AcmeAccountContext>;
 
 /** The caller supplies account-key signing; SSL does not handle private keys. */
 export interface JwsSigner {

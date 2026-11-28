@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { AcmeClient, accountJwkThumbprint, createChallengeFromKeyAuthorization } from "../acme";
 import { SSLError } from "../errors";
 import type {
+  AcmeAccountContext,
+  AcmeAccountProvider,
   AcmeAuthorization,
   AcmeChallenge,
   AcmeExternalAccountBinding,
@@ -27,8 +29,12 @@ export interface AcmeDriverOptions extends DriverOptions {
   nonceStore?: NonceStore;
   accountUrl?: string;
   accountJwk?: Record<string, unknown>;
+  account?: AcmeAccountContext | AcmeAccountProvider;
   contacts?: string[];
   externalAccount?: AcmeExternalAccountBinding;
+  nonceRetryLimit?: number;
+  nonceRetryBaseMs?: number;
+  nonceRetryMaxMs?: number;
   preferredChallenge?: ChallengeType;
   privateKeyRef?: string;
   pollIntervalMs?: number;
@@ -113,18 +119,23 @@ export default function acmeDriver(options: AcmeDriverOptions): SSLDriver<AcmeDr
     fetch: options.fetch,
     signer: options.signer,
     nonceStore: options.nonceStore,
+    account: options.account,
     accountUrl: options.accountUrl,
     accountJwk: options.accountJwk,
     contacts: options.contacts,
     externalAccount: options.externalAccount,
+    nonceRetryLimit: options.nonceRetryLimit,
+    nonceRetryBaseMs: options.nonceRetryBaseMs,
+    nonceRetryMaxMs: options.nonceRetryMaxMs,
   });
 
   async function issueCertificate(
     request: CertificateRequest,
     renewalOf?: string,
   ): Promise<IssuedCertificate> {
-    if (!options.signer || !options.accountJwk) {
-      throw new SSLError("ACME issuance requires signer and accountJwk", {
+    const account = await client.accountContext();
+    if (!account.accountJwk) {
+      throw new SSLError("ACME issuance requires an account public JWK", {
         code: "invalid_request",
         provider: options.provider,
       });
@@ -143,12 +154,23 @@ export default function acmeDriver(options: AcmeDriverOptions): SSLDriver<AcmeDr
 
     for (const authorizationUrl of authorizationUrls) {
       let authorization = await client.getAuthorization(authorizationUrl);
+      if (authorization.status === "invalid") {
+        const failure = authorization.error;
+        throw new SSLError(`Authorization failed for ${authorization.identifier.value}`, {
+          code: "challenge_failed",
+          provider: options.provider,
+          details: authorization,
+          ...(failure && {
+            cause: new Error(`${failure.type}: ${failure.detail || "authorization error"}`),
+          }),
+        });
+      }
       if (authorization.status === "valid") continue;
       const selected = selectChallenge(authorization, preferred);
       const keyAuthorization = createChallengeFromKeyAuthorization(
         authorization.identifier.value,
         selected.type,
-        `${selected.token}.${accountJwkThumbprint(options.accountJwk || {})}`,
+        `${selected.token}.${accountJwkThumbprint(account.accountJwk)}`,
       );
 
       if (!issueOptions.onChallenge) {
@@ -269,19 +291,17 @@ export default function acmeDriver(options: AcmeDriverOptions): SSLDriver<AcmeDr
           request.keyAuthorization,
         );
       }
-      if (!request.token || !options.accountJwk) {
-        throw new SSLError(
-          "ACME challenge derivation requires keyAuthorization or token and accountJwk",
-          {
-            code: "invalid_request",
-            provider: options.provider,
-          },
-        );
+      const account = await client.accountContext();
+      if (!account.accountJwk) {
+        throw new SSLError("ACME challenge derivation requires an account public JWK", {
+          code: "invalid_request",
+          provider: options.provider,
+        });
       }
       return createChallengeFromKeyAuthorization(
         request.identifier,
         request.type,
-        `${request.token}.${accountJwkThumbprint(options.accountJwk)}`,
+        `${request.token}.${accountJwkThumbprint(account.accountJwk)}`,
       );
     },
 

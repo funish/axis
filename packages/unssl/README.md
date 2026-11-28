@@ -57,6 +57,14 @@ After every pending authorization is valid, the driver polls the order through `
 
 Polling uses 1 second by default. Set `pollIntervalMs` at driver level or per issue; `0` means poll without delay, while omitting it uses the next configured value or the default.
 
+### ACME account keys
+
+The generic driver accepts either the low-level `signer`/`accountJwk` pair or an injected `account` provider. A provider can lazily create, load, recover, or rotate an account key while keeping the key and its encryption policy outside Axis. `KeyEncryption` receives only ciphertext/plaintext and directory-scoped context; `EncryptedKeyStorage` receives only ciphertext and metadata.
+
+`createAcmeAccountKeyService` wires those boundaries together. It derives one stable primary reference and one rotation reference per directory URL, persists the account URL with the encrypted key, and exposes `getOrCreate`, `load`, `setAccountUrl`, `createRotation`, `activateRotation`, and `discardRotation`. The default generator creates an EC P-256 (`ES256`) key and can export an encrypted PKCS#8 PEM when given a passphrase. Helpers include `generateEs256AccountKey`, `createEs256JwsSigner`, `es256Sign`, `es256Verify`, and RFC 7638 `jwkThumbprint`.
+
+For RFC 8555 key change, create a client backed by the rotation key and call `changeAcmeAccountKey(currentClient, rotationClient)`. It signs the inner `keyChange` object with the new key, wraps it in an outer JWS signed by the current key, and reuses the existing account URL after success. BadNonce handling retries with a fresh nonce using bounded exponential backoff (`nonceRetryLimit`, `nonceRetryBaseMs`, and `nonceRetryMaxMs`).
+
 ## ACME provider drivers
 
 Provider presets map documented endpoints and account/profile-specific directory URLs to the generic driver:
@@ -137,7 +145,7 @@ BuyPass is intentionally absent: its SSL/ACME service was discontinued.
 
 ## Dependency injection
 
-SSL does not read private keys or operate DNS itself. `JwsSigner`, `NonceStore`, `HttpFetch`, polling, and DNS adapters are supplied by the application.
+SSL does not read private keys or operate DNS itself. `JwsSigner`, `AcmeAccountProvider`, `NonceStore`, `HttpFetch`, polling, and DNS adapters are supplied by the application.
 
 ```typescript
 import { createSSLManager } from "unssl";
@@ -149,7 +157,7 @@ const ssl = createSSLManager({
 });
 ```
 
-The exported `KeyStorage` interface is for application-owned adapters. It is intentionally not accepted by `createSSLManager`: SSL does not generate private keys, and storage policy must remain in the application or a driver-specific option.
+The exported `KeyStorage` and `EncryptedKeyStorage` interfaces are for application-owned adapters. They are intentionally not accepted by `createSSLManager`: SSL does not generate or persist private keys, and storage policy must remain in the application or an explicitly injected account-key service.
 
 ## DNS-01
 
